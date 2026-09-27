@@ -16,14 +16,16 @@ const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: root, stdio
 try { execFileSync(gh, ['release', 'view', tag, '--repo', `${owner}/${repo}`], { stdio: 'ignore' }); console.error(`✗ ${tag} already exists — bump "version" in package.json first`); process.exit(1); } catch { /* good: new version */ }
 
 console.log(`▶ building ${tag}`);
-fs.rmSync(path.join(root, 'dist'), { recursive: true, force: true });
-run('npx', ['electron-builder', '--win', '--publish', 'never']);
+// each release builds into its own folder, so a running copy of the app never blocks it
+const outDir = path.join(root, 'release', version);
+fs.rmSync(outDir, { recursive: true, force: true });
+run('npx', ['electron-builder', '--win', '--publish', 'never', '-c.directories.output=' + path.relative(root, outDir)]);
 
 const exeName = `CraftHubSetup-${version}.exe`;
-const exe = path.join(root, 'dist', exeName);
+const exe = path.join(outDir, exeName);
 const buf = fs.readFileSync(exe);
 const sha512 = crypto.createHash('sha512').update(buf).digest('base64');
-const latest = path.join(root, 'dist', 'latest.yml');
+const latest = path.join(outDir, 'latest.yml');
 fs.writeFileSync(latest, `version: ${version}\nfiles:\n  - url: ${exeName}\n    sha512: ${sha512}\n    size: ${buf.length}\npath: ${exeName}\nsha512: ${sha512}\nreleaseDate: '${new Date().toISOString()}'\n`);
 
 const notes = process.argv.slice(2).join(' ') || `Craft Hub ${version}`;
