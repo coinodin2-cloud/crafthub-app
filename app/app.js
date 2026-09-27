@@ -1889,3 +1889,139 @@ drawUpdate = function (st) {
 };
 updPopupShown = true; // the old popup is replaced by the one above
 B.updateState().then(st => drawUpdate(st)).catch(() => { });
+
+/* ================= home page (redesign) ================= */
+Object.assign(ICONS, {
+  puzzle: '<path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3h7Z"/>',
+  gear: '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.2-1.8-.6-1.3.3-2.7 1.7-2.7H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14M15 6v14"/>'
+});
+Object.assign(I18N.he, {
+  h_hello: 'שלום', h_hello_guest: 'ברוכים הבאים ל-Craft Hub', h_sub: 'פלאגינים, מודים, טקסטורות ושיידרים מהקהילה הישראלית — מתקינים בלחיצה אחת.',
+  h_search: 'מה מחפשים היום? פלאגין, מוד, טקסטורה…', h_projects: 'פרויקטים', h_downloads: 'הורדות', h_creators: 'קרייטורים', h_servers: 'שרתים',
+  h_categories: 'קטגוריות', h_items: '{x} פריטים', h_spotlight: 'בזרקור', h_top_creators: 'קרייטורים מובילים', h_friends: 'חברים מחוברים', h_last_update: 'מה חדש ב-Craft Hub',
+  h_become: 'רוצה לפרסם תוכן?', h_become_sub: 'העלה את הפלאגין או המוד שלך והגע לאלפי שחקנים.', h_upload: 'העלאת פרויקט', h_add_server: 'הוספת שרת', h_more: 'לכל העדכונים'
+});
+Object.assign(I18N.en, {
+  h_hello: 'Hi', h_hello_guest: 'Welcome to Craft Hub', h_sub: 'Plugins, mods, texture packs and shaders from the community — installed in one click.',
+  h_search: 'What are you looking for? A plugin, mod, texture pack…', h_projects: 'Projects', h_downloads: 'Downloads', h_creators: 'Creators', h_servers: 'Servers',
+  h_categories: 'Categories', h_items: '{x} items', h_spotlight: 'Spotlight', h_top_creators: 'Top creators', h_friends: 'Friends online', h_last_update: 'What\'s new in Craft Hub',
+  h_become: 'Want to publish?', h_become_sub: 'Upload your plugin or mod and reach thousands of players.', h_upload: 'Upload a project', h_add_server: 'Add a server', h_more: 'All updates'
+});
+const TYPE_ICON = { plugin: 'puzzle', mod: 'gear', resourcepack: 'palette', shader: 'sun', datapack: 'layers', modpack: 'box', world: 'map' };
+
+vHome = async function (p, stale) {
+  const me = S.me && S.me.user;
+  const [projects, srv, creators, updates, friends] = await Promise.all([
+    loadProjects(), api('/api/servers').catch(() => ({ servers: [] })), api('/api/creators').catch(() => []),
+    api('/api/updates').catch(() => []), me ? api('/api/friends').catch(() => null) : null, refreshInstalled()]);
+  if (stale()) return;
+  const servers = srv.servers || [];
+  const byWeek = (a, b) => (b.week || 0) - (a.week || 0) || (b.downloads || 0) - (a.downloads || 0);
+  const trending = projects.slice().sort(byWeek).slice(0, 6);
+  const newest = projects.slice().sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
+  const spot = projects.find(x => x.featured) || trending[0];
+  const totalDl = projects.reduce((s, x) => s + (x.downloads || 0), 0);
+  const counts = {}; projects.forEach(x => { const k = x.type || 'plugin'; counts[k] = (counts[k] || 0) + 1; });
+  const types = Object.keys(S.site.projectTypes || { plugin: 1, mod: 1, resourcepack: 1, shader: 1 });
+  const online = friends ? friends.friends.filter(f => f.online) : [];
+  const upd = updates.slice().sort((a, b) => b.at - a.at)[0];
+  const section = (icon, title, more, inner) => `<section class="section"><div class="section-h">${ic(icon)}<h2>${title}</h2><span class="spacer"></span>${more ? `<a class="link" href="#" data-go="${more}">${t('see_all')} ${ic(flip(), 'sm')}</a>` : ''}</div>${inner}</section>`;
+
+  put(`
+    <section class="h-hero">
+      <div class="h-glow"></div>
+      <div class="h-in">
+        <span class="h-eyebrow">${ic('sparkle', 'sm')} ${esc(S.site.eyebrow || 'Craft Hub')}</span>
+        <h1>${me ? `${t('h_hello')}, <span class="h-name">${esc(me.globalName || me.username)}</span> 👋` : t('h_hello_guest')}</h1>
+        <p>${t('h_sub')}</p>
+        <form class="h-search" id="hSearch">${ic('search')}<input type="text" name="q" placeholder="${t('h_search')}" autocomplete="off"><button class="btn primary">${LANG === 'he' ? 'חפש' : 'Search'}</button></form>
+        <div class="h-stats">
+          <div><b>${fmtNum(projects.length)}</b><span>${t('h_projects')}</span></div>
+          <div><b>${fmtNum(totalDl)}</b><span>${t('h_downloads')}</span></div>
+          <div><b>${fmtNum(creators.length)}</b><span>${t('h_creators')}</span></div>
+          <div><b>${fmtNum(servers.length)}</b><span>${t('h_servers')}</span></div>
+        </div>
+      </div>
+      ${spot ? `<div class="h-spot" data-go="project:slug:${esc(spot.slug)}"><span class="chip accent">${ic('star', 'sm')} ${t('h_spotlight')}</span>
+        <div class="h-spot-pic">${pic(spot, 'xl')}</div><b>${esc(spot.name)}</b><p>${esc(spot.short || '')}</p>
+        <div class="row" style="gap:12px;justify-content:center"><span class="stat">${ic('download', 'sm')} ${fmtNum(spot.downloads)}</span>${spot.likes ? `<span class="stat">${ic('heart', 'sm')} ${fmtNum(spot.likes)}</span>` : ''}</div>${installBtn(spot, 'lg')}</div>` : ''}
+    </section>
+
+    ${online.length ? `<div class="h-friends"><span class="faint">${ic('users', 'sm')} ${t('h_friends')}</span>${online.slice(0, 12).map(f => `<button class="h-friend" data-go="user:id:${esc(f.id)}" title="${esc(f.name)}"><img src="${esc(siteImg(f.avatar) || f.avatar || '')}" alt=""><span class="online-dot abs"></span></button>`).join('')}</div>` : ''}
+
+    ${section('grid', t('h_categories'), '', `<div class="h-cats">${types.map(k => `<button class="h-cat" data-type="${k}"><span class="h-cat-ic">${ic(TYPE_ICON[k] || 'box')}</span><b>${esc(typeName(k))}</b><small>${t('h_items', counts[k] || 0)}</small></button>`).join('')}</div>`)}
+
+    ${trending.length ? section('flame', t('trending'), 'discover', `<div class="grid">${trending.map(projectCard).join('')}</div>`) : ''}
+
+    ${newest.length ? section('sparkle', t('newest'), 'discover', `<div class="h-row">${newest.map(x => `<div class="h-mini" data-go="project:slug:${esc(x.slug)}">${pic(x)}<div style="min-width:0"><b>${esc(x.name)}</b><small>${esc(typeName(x.type || 'plugin'))} · ${timeAgo(x.createdAt)}</small></div></div>`).join('')}</div>`) : ''}
+
+    <div class="h-two">
+      ${servers.length ? section('globe', t('top_servers'), 'servers', `<div class="stack" style="gap:10px">${servers.slice(0, 4).map(serverRow).join('')}</div>`) : ''}
+      ${creators.length ? section('crown', t('h_top_creators'), 'creators', `<div class="card card-b h-creators">${creators.slice(0, 5).map((c, i) => `<div class="lrow" data-go="user:id:${esc(c.id)}" style="cursor:pointer"><span class="num">${i + 1}</span><img class="av" src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt=""><div style="flex:1;min-width:0"><b>${esc(c.name)}</b><div class="faint" style="font-size:12.5px">${fmtNum(c.projectCount)} ${t('projects')} · ${fmtNum(c.downloads)} ${t('downloads')}</div></div>${c.recommended ? ic('star', 'sm') : ''}</div>`).join('')}</div>`) : ''}
+    </div>
+
+    <div class="h-two">
+      ${upd ? section('megaphone', t('h_last_update'), 'updates', `<article class="card card-b h-upd"><div class="row"><span class="chip accent">${fmtDate(upd.at)}</span></div><h3>${esc(LANG === 'en' && upd.titleEn ? upd.titleEn : upd.title)}</h3><div class="md">${md(String(LANG === 'en' && upd.bodyEn ? upd.bodyEn : upd.body).slice(0, 400))}</div></article>`) : ''}
+      <section class="section"><div class="h-cta"><div class="h-cta-ic">${ic('upload', 'xl')}</div><h3>${t('h_become')}</h3><p class="faint">${t('h_become_sub')}</p><div class="row" style="gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn primary lg" data-go="studio">${ic('upload', 'sm')} ${t('h_upload')}</button><button class="btn lg" data-go="srvedit">${ic('globe', 'sm')} ${t('h_add_server')}</button></div></div></section>
+    </div>`);
+  $('#hSearch').onsubmit = e => { e.preventDefault(); go('discover', { q: e.target.q.value.trim() }); };
+  view.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { DISC.cat = ''; go('discover', { type: b.dataset.type, q: '' }); });
+};
+
+/* ---------- a separate background for the home page ---------- */
+Object.assign(I18N.he, { home_bg: 'תמונת רקע לדף הבית (קישור)', home_bg_hint: 'השאר ריק כדי להשתמש ברקע הרגיל גם בדף הבית', home_dim: 'הכהיית הרקע של דף הבית', bg_all: 'רקע לכל האפליקציה', bg_home: 'רקע לדף הבית' });
+Object.assign(I18N.en, { home_bg: 'Home page background (URL)', home_bg_hint: 'Leave empty to use the regular background on the home page too', home_dim: 'Home background dim', bg_all: 'App background', bg_home: 'Home page background' });
+const okBg = u => typeof u === 'string' && /^https:\/\//.test(u);
+function applyBg() {
+  const a = (S.site && S.site.appearance) || {}, bg = $('#bgimg');
+  if (!bg) return;
+  const home = S.route === 'home' && okBg(a.homeBackgroundUrl);
+  const url = home ? a.homeBackgroundUrl : a.backgroundUrl, dim = home ? (a.homeBackgroundDim ?? 55) : (a.backgroundDim ?? 70);
+  if (!okBg(url)) { bg.hidden = true; bg.dataset.url = ''; return; }
+  const css = `url("${url.replace(/"/g, '')}")`;
+  bg.hidden = false;
+  bg.style.opacity = String(1 - Math.min(95, Math.max(0, dim)) / 100);
+  if (bg.dataset.url !== url) { bg.dataset.url = url; bg.style.backgroundImage = css; }
+}
+const _applyAppearanceH = applyAppearance;
+applyAppearance = function () { _applyAppearanceH(); applyBg(); };
+const _renderNavH = renderNav;
+renderNav = function () { _renderNavH(); applyBg(); };
+
+aLook = async function (body, stale) {
+  const site = await api('/api/site');
+  if (stale()) return;
+  const a = site.appearance || {};
+  const dimField = (name, label, v) => field(`${label} <b data-dv="${name}">${v}%</b>`, `<input type="range" name="${name}" min="0" max="95" value="${v}" style="accent-color:var(--accent)">`);
+  body.innerHTML = `<form class="stack" id="lkF">
+    <div class="card"><div class="card-h">${ic('image')}<h3>${t('bg_all')}</h3></div><div class="card-b form2">
+      ${field(t('bg_url'), inp('backgroundUrl', a.backgroundUrl, 'class="ltr" placeholder="https://"'), true)}
+      ${dimField('backgroundDim', t('bg_dim'), a.backgroundDim ?? 70)}
+      ${field(t('accent'), `<input type="color" name="accentColor" value="${esc(a.accentColor || '#e3b341')}" style="height:48px;width:120px;padding:4px">`)}</div></div>
+    <div class="card"><div class="card-h">${ic('home')}<h3>${t('bg_home')}</h3></div><div class="card-b form2">
+      ${field(t('home_bg'), inp('homeBackgroundUrl', a.homeBackgroundUrl, 'class="ltr" placeholder="https://"'), true)}
+      <p class="faint full" style="margin:-6px 0 0;font-size:13px">${t('home_bg_hint')}</p>
+      ${dimField('homeBackgroundDim', t('home_dim'), a.homeBackgroundDim ?? 55)}
+      <div class="bg-prev" id="hbPrev"></div></div></div>
+    <div class="card"><div class="card-h">${ic('settings')}<h3>${t('a_look')}</h3></div><div class="card-b form2">
+      ${toggle('announcementEnabled', a.announcementEnabled, t('announce_on'))}
+      ${field(t('announce_text'), inp('announcement', site.announcement), true)}
+      ${toggle('ticketsEnabled', a.ticketsEnabled !== false, t('feat_tickets'))}${toggle('creatorsEnabled', a.creatorsEnabled !== false, t('feat_creators'))}${toggle('downloadsEnabled', a.downloadsEnabled !== false, t('feat_downloads'))}</div></div>
+    <button class="btn primary lg" style="align-self:flex-start">${ic('check', 'sm')} ${t('save')}</button></form>`;
+  const f = $('#lkF');
+  f.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { f.querySelector(`[data-dv="${r.name}"]`).textContent = r.value + '%'; prev(); });
+  const prev = () => { const u = f.homeBackgroundUrl.value.trim(); $('#hbPrev').style.backgroundImage = okBg(u) ? `linear-gradient(rgba(0,0,0,${f.homeBackgroundDim.value / 100}),rgba(0,0,0,${f.homeBackgroundDim.value / 100})),url("${u.replace(/"/g, '')}")` : ''; $('#hbPrev').hidden = !okBg(u); };
+  f.homeBackgroundUrl.oninput = prev; prev();
+  f.onsubmit = async e => {
+    e.preventDefault();
+    try {
+      await api('/api/admin/appearance', { method: 'PUT', body: { backgroundUrl: f.backgroundUrl.value.trim(), backgroundDim: Number(f.backgroundDim.value), homeBackgroundUrl: f.homeBackgroundUrl.value.trim(), homeBackgroundDim: Number(f.homeBackgroundDim.value), accentColor: f.accentColor.value, announcementEnabled: f.announcementEnabled.checked, ticketsEnabled: f.ticketsEnabled.checked, creatorsEnabled: f.creatorsEnabled.checked, downloadsEnabled: f.downloadsEnabled.checked } });
+      await api('/api/admin/site', { method: 'PUT', body: { lang: 'he', announcement: f.announcement.value } });
+      S.site = await api('/api/site'); applyAppearance(); toast(t('saved'));
+    } catch (err) { toast(err.message, 'err'); }
+  };
+};
