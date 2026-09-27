@@ -2319,9 +2319,10 @@ async function vMessages(p, stale) {
   if (stale()) return;
   if (d.error) { chat.innerHTML = emptyBox('msg', d.error); return; }
   const w = d.with;
+  DM.info = d;
   chat.innerHTML = `<div class="dm-head" data-go="user:id:${esc(w.id)}"><img class="av" src="${avatarOf(w)}" alt=""><div><b>${esc(w.name)}${w.verified ? ' ' + vcheck() : ''}</b><small class="faint">${seenTxt(w)}</small></div></div>
     <div class="dm-msgs" id="dmMsgs"></div>
-    ${d.friend === 'friends' ? `<form class="composer" id="dmF"><textarea name="text" rows="1" maxlength="2000" placeholder="${t('dm_ph')}"></textarea><button class="btn primary">${ic('send', 'sm')} ${t('dm_send')}</button></form>` : `<p class="faint" style="text-align:center;padding:12px;margin:0">${t('dm_only_friends')}</p>`}`;
+    ${d.friend === 'friends' && d.dmsOff ? `<p class="faint dm-off" style="text-align:center;padding:12px;margin:0">${t('pv_dm_off_other')}</p>` : d.friend === 'friends' ? `<form class="composer" id="dmF"><textarea name="text" rows="1" maxlength="2000" placeholder="${t('dm_ph')}"></textarea><button class="btn primary">${ic('send', 'sm')} ${t('dm_send')}</button></form>` : `<p class="faint" style="text-align:center;padding:12px;margin:0">${t('dm_only_friends')}</p>`}`;
   bindCommon(chat);
   const box = $('#dmMsgs');
   let lastDay = '';
@@ -2565,13 +2566,17 @@ Object.assign(ICONS, {
   micoff: '<path d="M9 5a3 3 0 0 1 6 0v5M15 13a3 3 0 0 1-5.6 1.4M5 11a7 7 0 0 0 11.2 5.6M19 11a7 7 0 0 1-.6 2.9M12 18v4M3 3l18 18"/>',
   screen: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
   hangup: '<path d="M3 15c5-5 13-5 18 0l-2 3-4-1v-3a10 10 0 0 0-6 0v3l-4 1Z" fill="currentColor"/>',
-  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  headphones: '<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M3 18a2 2 0 0 0 2 2h1v-7H5a2 2 0 0 0-2 2ZM21 18a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z"/>',
+  headoff: '<path d="M3 18v-6a9 9 0 0 1 15.4-6.4M21 12v6"/><path d="M3 18a2 2 0 0 0 2 2h1v-7H5a2 2 0 0 0-2 2ZM21 18a2 2 0 0 1-2 2h-1v-4M3 3l18 18"/>'
 });
 Object.assign(I18N.he, {
   call_voice: 'שיחה קולית', call_video: 'שיחת וידאו', call_calling: 'מתקשר…', call_ringing_in: 'מתקשר אליך', call_video_in: 'שיחת וידאו נכנסת', call_answer: 'ענה', call_decline: 'דחה',
   call_connecting: 'מתחבר…', call_ended: 'השיחה הסתיימה', call_declined: 'השיחה נדחתה', call_missed: 'אין מענה', call_busy: 'לא הצלחתי לגשת למיקרופון/מצלמה', call_lost: 'החיבור נותק',
   call_mute: 'השתק', call_cam: 'מצלמה', call_share: 'שיתוף מסך', call_stop_share: 'הפסק שיתוף', call_hang: 'נתק', call_share_perm: 'שיתוף מסך דורש אישור מהצוות', call_pick_screen: 'מה לשתף?', call_screen_whole: 'מסך', call_screen_window: 'חלון', call_sharing: 'משתף מסך',
   av_title: 'קול ווידאו', av_mic: 'מיקרופון', av_cam: 'מצלמה', av_spk: 'רמקולים / אוזניות', av_default: 'ברירת מחדל', av_test_mic: 'דבר כדי לבדוק את המיקרופון', av_test_spk: 'בדיקת רמקול', av_cam_on: 'הצג מצלמה', av_cam_off: 'כבה תצוגה', av_ns: 'סינון רעשי רקע', av_ec: 'ביטול הד', av_agc: 'כיוון עוצמה אוטומטי', av_perm: 'צריך לאשר גישה למיקרופון / מצלמה',
+  call_deaf: 'דיפן', call_deaf_on: 'במצב דיפן — לא שומעים אותך ואתה לא שומע · Ctrl+D',
+  pv_title: 'פרטיות', pv_dms: 'מי יכול לשלוח לי הודעות פרטיות', pv_calls: 'מי יכול להתקשר אליי', pv_friends: 'חברים', pv_none: 'אף אחד', pv_saved: 'נשמר ✓', pv_dm_off_other: 'המשתמש כיבה הודעות פרטיות',
   ss_perm: 'הרשאת שיתוף מסך', ss_on: 'תן שיתוף מסך', ss_off: 'הסר שיתוף מסך', ss_badge: 'משתף מסך'
 });
 Object.assign(I18N.en, {
@@ -2579,6 +2584,8 @@ Object.assign(I18N.en, {
   call_connecting: 'Connecting…', call_ended: 'Call ended', call_declined: 'Call declined', call_missed: 'No answer', call_busy: 'Could not access the microphone/camera', call_lost: 'Connection lost',
   call_mute: 'Mute', call_cam: 'Camera', call_share: 'Share screen', call_stop_share: 'Stop sharing', call_hang: 'Hang up', call_share_perm: 'Screen sharing needs staff approval', call_pick_screen: 'What to share?', call_screen_whole: 'Screen', call_screen_window: 'Window', call_sharing: 'Sharing screen',
   av_title: 'Voice & video', av_mic: 'Microphone', av_cam: 'Camera', av_spk: 'Speakers / headphones', av_default: 'Default', av_test_mic: 'Speak to test the microphone', av_test_spk: 'Test speaker', av_cam_on: 'Show camera', av_cam_off: 'Stop preview', av_ns: 'Noise suppression', av_ec: 'Echo cancellation', av_agc: 'Auto gain', av_perm: 'Allow access to the microphone / camera',
+  call_deaf: 'Deafen', call_deaf_on: 'Deafened — nobody hears you and you hear nobody · Ctrl+D',
+  pv_title: 'Privacy', pv_dms: 'Who can send me private messages', pv_calls: 'Who can call me', pv_friends: 'Friends', pv_none: 'Nobody', pv_saved: 'Saved ✓', pv_dm_off_other: 'This user turned off private messages',
   ss_perm: 'Screen share permission', ss_on: 'Allow screen share', ss_off: 'Remove screen share', ss_badge: 'Can share screen'
 });
 
@@ -2603,6 +2610,7 @@ async function iceConfig() { if (!CALL.ice) { try { CALL.ice = await api('/api/c
 const sig = (kind, data) => api(`/api/calls/${CALL.id}/signal`, { method: 'POST', body: { kind, data } });
 
 async function startCall(user, video) {
+  video = false; // voice calls only
   if (CALL.id) return toast(LANG === 'he' ? 'אתה כבר בשיחה' : 'Already in a call', 'err');
   try { CALL.local = await navigator.mediaDevices.getUserMedia({ audio: audioC(), video: video ? videoC() : false }); }
   catch { return toast(t('call_busy'), 'err'); }
@@ -2660,7 +2668,7 @@ async function handleSignal(s) {
   } else if (s.kind === 'ice') {
     if (pc && pc.remoteDescription) await pc.addIceCandidate(s.data).catch(() => { }); else CALL.pendingIce.push(s.data);
   } else if (s.kind === 'screen') { CALL.remoteScreen = !!s.data.on; drawCall(); }
-  else if (s.kind === 'media') { CALL.remoteCamOff = !!s.data.camOff; CALL.remoteMuted = !!s.data.muted; drawCall(); }
+  else if (s.kind === 'media') { CALL.remoteCamOff = !!s.data.camOff; CALL.remoteMuted = !!s.data.muted; CALL.remoteDeaf = !!s.data.deaf; drawCall(); }
   else if (s.kind === 'ended') { const why = s.data.reason; toast(why === 'declined' ? t('call_declined') : why === 'missed' ? t('call_missed') : t('call_ended')); hangUp(true); }
 }
 function stopTracks() { [CALL.local, CALL.screen].forEach(st => st && st.getTracks().forEach(tr => tr.stop())); CALL.local = CALL.screen = null; }
@@ -2670,12 +2678,24 @@ function hangUp(remote) {
   ring(false);
   try { CALL.pc && CALL.pc.close(); } catch { }
   stopTracks();
-  Object.assign(CALL, { id: null, pc: null, status: '', with: null, remoteScreen: false });
+  Object.assign(CALL, { id: null, pc: null, status: '', with: null, remoteScreen: false, deaf: false, muted: false, remoteMuted: false, remoteDeaf: false });
   clearInterval(CALL.tick); CALL.tick = null;
   const box = $('#callBox'); if (box) box.remove();
   schedulePoll(2500);
 }
-async function toggleMute() { CALL.muted = !CALL.muted; CALL.local && CALL.local.getAudioTracks().forEach(tr => { tr.enabled = !CALL.muted; }); sig('media', { muted: CALL.muted, camOff: CALL.camOff }).catch(() => { }); drawCall(); }
+// deafen: hear nobody, and nobody hears you (like Discord). Undeafen brings the microphone back as it was.
+function toggleDeafen() {
+  if (!CALL.id) return;
+  CALL.deaf = !CALL.deaf;
+  const rem = $('#callRemote'); if (rem) rem.muted = CALL.deaf;
+  if (CALL.deaf) { CALL.mutedBeforeDeaf = CALL.muted; CALL.muted = true; }
+  else CALL.muted = !!CALL.mutedBeforeDeaf;
+  CALL.local && CALL.local.getAudioTracks().forEach(tr => { tr.enabled = !CALL.muted; });
+  sig('media', { muted: CALL.muted, camOff: CALL.camOff, deaf: CALL.deaf }).catch(() => { });
+  drawCall();
+}
+async function toggleMute() {
+  if (CALL.deaf) return toggleDeafen(); CALL.muted = !CALL.muted; CALL.local && CALL.local.getAudioTracks().forEach(tr => { tr.enabled = !CALL.muted; }); sig('media', { muted: CALL.muted, camOff: CALL.camOff, deaf: !!CALL.deaf }).catch(() => { }); drawCall(); }
 async function toggleCam() {
   const sender = CALL.pc && CALL.pc.getTransceivers().map(tr => tr.sender).find(sd => (sd.track && sd.track.kind === 'video') || !sd.track);
   let cam = CALL.local.getVideoTracks()[0];
@@ -2685,7 +2705,7 @@ async function toggleCam() {
   } else CALL.camOff = !CALL.camOff;
   cam.enabled = !CALL.camOff;
   if (sender && !CALL.screen) await sender.replaceTrack(cam);
-  sig('media', { muted: CALL.muted, camOff: CALL.camOff }).catch(() => { });
+  sig('media', { muted: CALL.muted, camOff: CALL.camOff, deaf: !!CALL.deaf }).catch(() => { });
   drawCall();
 }
 async function toggleScreen() {
@@ -2730,9 +2750,10 @@ function drawCall() {
     box = document.createElement('div'); box.id = 'callBox';
     box.innerHTML = `<div class="cb-stage"><video id="callRemote" autoplay playsinline></video><div class="cb-who"></div><video id="callLocal" autoplay playsinline muted></video></div>
       <div class="cb-bar"><div class="cb-info"><b class="cb-name"></b><small class="cb-state"></small></div><span class="spacer"></span>
-        <button class="cb-btn" data-a="mute"></button><button class="cb-btn" data-a="cam"></button><button class="cb-btn" data-a="screen"></button><button class="cb-btn" data-a="big" title="">${ic('expand', 'sm')}</button><button class="cb-btn red" data-a="hang" title="${t('call_hang')}">${ic('hangup')}</button></div>`;
+        <button class="cb-btn" data-a="deaf"></button><button class="cb-btn" data-a="mute"></button><button class="cb-btn" data-a="cam"></button><button class="cb-btn" data-a="screen"></button><button class="cb-btn" data-a="big" title="">${ic('expand', 'sm')}</button><button class="cb-btn red" data-a="hang" title="${t('call_hang')}">${ic('hangup')}</button></div>`;
     document.body.appendChild(box);
     box.querySelector('[data-a="mute"]').onclick = toggleMute;
+    box.querySelector('[data-a="deaf"]').onclick = toggleDeafen;
     box.querySelector('[data-a="cam"]').onclick = toggleCam;
     box.querySelector('[data-a="screen"]').onclick = toggleScreen;
     box.querySelector('[data-a="big"]').onclick = () => box.classList.toggle('big');
@@ -2744,14 +2765,25 @@ function drawCall() {
   const myVideo = CALL.screen || (CALL.local && CALL.local.getVideoTracks().length && !CALL.camOff ? CALL.local : null);
   if (loc.srcObject !== myVideo) loc.srcObject = myVideo;
   loc.hidden = !myVideo;
-  const remoteHasVideo = rem.srcObject && rem.srcObject.getVideoTracks().some(tr => tr.readyState === 'live' && !tr.muted) && !CALL.remoteCamOff || CALL.remoteScreen;
+  // voice calls: the only picture shown is an approved screen share (never someone's camera)
+  const remoteHasVideo = !!CALL.remoteScreen;
   box.classList.toggle('has-video', !!remoteHasVideo);
   box.classList.toggle('screen', !!CALL.remoteScreen);
   box.querySelector('.cb-who').innerHTML = remoteHasVideo ? '' : `<img src="${avatarOf(w)}" alt="" class="${CALL.status === 'active' ? '' : 'pulse'}"><b>${esc(w.name || '')}</b>`;
   box.querySelector('.cb-name').innerHTML = `${esc(w.name || '')}${w.verified ? ' ' + vcheck() : ''}`;
-  box.querySelector('.cb-state').textContent = CALL.status === 'ringing' ? t('call_calling') : CALL.status === 'connecting' ? t('call_connecting') : fmtDur(Date.now() - CALL.startedAt) + (CALL.screen ? ' · ' + t('call_sharing') : '') + (CALL.remoteMuted ? ' · 🔇' : '');
+  box.querySelector('.cb-state').textContent = CALL.status === 'ringing' ? t('call_calling') : CALL.status === 'connecting' ? t('call_connecting') : fmtDur(Date.now() - CALL.startedAt) + (CALL.screen ? ' · ' + t('call_sharing') : '') + (CALL.remoteDeaf ? ' · 🎧✖' : CALL.remoteMuted ? ' · 🔇' : '');
   const b = a => box.querySelector(`[data-a="${a}"]`);
   b('mute').innerHTML = ic(CALL.muted ? 'micoff' : 'mic', 'sm'); b('mute').classList.toggle('off', CALL.muted); b('mute').title = t('call_mute');
+  // a clear banner while muted (Ctrl+M toggles)
+  let mb = box.querySelector('.cb-muted');
+  if (CALL.muted && !mb) { box.querySelector('.cb-stage').insertAdjacentHTML('beforeend', `<div class="cb-muted">${ic('micoff', 'sm')} ${LANG === 'he' ? 'המיקרופון מושתק — Ctrl+M להחזרה' : 'Microphone muted — Ctrl+M to unmute'}</div>`); }
+  else if (!CALL.muted && mb) mb.remove();
+  b('mute').title = t('call_mute') + ' (Ctrl+M)';
+  b('deaf').innerHTML = ic(CALL.deaf ? 'headoff' : 'headphones', 'sm'); b('deaf').classList.toggle('off', !!CALL.deaf); b('deaf').title = t('call_deaf') + ' (Ctrl+D)';
+  let db = box.querySelector('.cb-deaf');
+  if (CALL.deaf && !db) box.querySelector('.cb-stage').insertAdjacentHTML('beforeend', `<div class="cb-deaf">${ic('headoff', 'sm')} ${t('call_deaf_on')}</div>`);
+  else if (!CALL.deaf && db) db.remove();
+  const mb2 = box.querySelector('.cb-muted'); if (mb2) mb2.hidden = !!CALL.deaf;
   const camOn = CALL.local && CALL.local.getVideoTracks().length && !CALL.camOff;
   b('cam').innerHTML = ic(camOn ? 'video' : 'videooff', 'sm'); b('cam').classList.toggle('off', !camOn); b('cam').title = t('call_cam');
   b('cam').disabled = b('screen').disabled = CALL.status !== 'active';
@@ -2785,6 +2817,10 @@ async function pollCalls() {
 }
 schedulePoll(3000);
 window.addEventListener('beforeunload', () => { if (CALL.id) hangUp(false); });
+// Ctrl+M mutes / unmutes the microphone during a call
+document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm' && CALL.id && CALL.local) { e.preventDefault(); toggleMute(); } });
+// Ctrl+D deafens / undeafens
+document.addEventListener('keydown', e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'd' && CALL.id && CALL.local) { e.preventDefault(); toggleDeafen(); } });
 
 /* ---------- call buttons: chat header + profile ---------- */
 const _vMessagesC = vMessages;
@@ -2792,8 +2828,8 @@ vMessages = async function (p, stale) {
   await _vMessagesC(p, stale);
   if (stale()) return;
   const head = view.querySelector('.dm-head');
-  if (!head || !DM.with || !view.querySelector('#dmF')) return;
-  head.insertAdjacentHTML('beforeend', `<span class="spacer"></span><button class="icon-btn lg" data-call="0" title="${t('call_voice')}">${ic('phone')}</button><button class="icon-btn lg" data-call="1" title="${t('call_video')}">${ic('video')}</button>`);
+  if (!head || !DM.with || !DM.info || DM.info.friend !== 'friends' || DM.info.callsOff) return;
+  head.insertAdjacentHTML('beforeend', `<span class="spacer"></span><button class="icon-btn lg" data-call="0" title="${t('call_voice')}">${ic('phone')}</button>`);
   head.querySelectorAll('[data-call]').forEach(b => b.onclick = e => { e.stopPropagation(); startCall({ id: DM.with }, b.dataset.call === '1'); });
 };
 const _vUserC = vUser;
@@ -2802,9 +2838,8 @@ vUser = async function (params, stale) {
   if (stale()) return;
   const dmB = $('#dmB');
   if (dmB && !$('#callB')) {
-    dmB.insertAdjacentHTML('afterend', `<button class="btn" id="callB" title="${t('call_voice')}">${ic('phone', 'sm')}</button><button class="btn" id="vcallB" title="${t('call_video')}">${ic('video', 'sm')}</button>`);
+    dmB.insertAdjacentHTML('afterend', `<button class="btn" id="callB" title="${t('call_voice')}">${ic('phone', 'sm')}</button>`);
     $('#callB').onclick = () => startCall({ id: params.id }, false);
-    $('#vcallB').onclick = () => startCall({ id: params.id }, true);
   }
   // staff: give / remove the screen share permission
   if (hasPerm('moderation') && S.me.user.id !== params.id && !$('#ssB')) {
@@ -2822,6 +2857,15 @@ vSettings = async function (p, stale) {
   await _vSettingsAV(p, stale);
   if (stale()) return;
   const v = view.querySelector('.view-in'); if (!v) return;
+  if (S.me && S.me.user) {
+    const pv = await api('/api/me/privacy').catch(() => null);
+    if (pv && !stale()) {
+      const sel = (k, cur) => `<select data-pv="${k}"><option value="friends" ${cur === 'friends' ? 'selected' : ''}>${t('pv_friends')}</option><option value="none" ${cur === 'none' ? 'selected' : ''}>${t('pv_none')}</option></select>`;
+      v.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px"><div class="card-h">${ic('lock')}<h3>${t('pv_title')}</h3></div><div class="card-b form2">
+        <div><label class="lbl">${t('pv_dms')}</label>${sel('dms', pv.dms)}</div><div><label class="lbl">${t('pv_calls')}</label>${sel('calls', pv.calls)}</div></div></div>`);
+      v.querySelectorAll('[data-pv]').forEach(x => x.onchange = async () => { try { await api('/api/me/privacy', { method: 'PUT', body: { [x.dataset.pv]: x.value } }); toast(t('pv_saved')); } catch (err) { toast(err.message, 'err'); } });
+    }
+  }
   v.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px" id="avCard"><div class="card-h">${ic('mic')}<h3>${t('av_title')}</h3></div><div class="card-b av-grid">
     <div><label class="lbl">${t('av_mic')}</label><select id="avMic"></select><div class="mic-meter"><i id="avLvl"></i></div><small class="faint">${t('av_test_mic')}</small></div>
     <div><label class="lbl">${t('av_spk')}</label><select id="avSpk"></select><button class="btn" id="avSpkT" style="margin-top:10px">${ic('play2', 'sm')} ${t('av_test_spk')}</button></div>
