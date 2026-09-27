@@ -1,7 +1,7 @@
 {
   "name": "crafthub-app",
-  "version": "1.0.0",
-  "description": "Craft Hub — plugins, mods, texture packs, shaders and Minecraft servers",
+  "version": "1.1.0",
+  "description": "Craft Hub — install Minecraft mods, packs and shaders, play and vote for servers",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -34,6 +34,7 @@
       "preload.js",
       "offline.html",
       "blocked.html",
+      "app/**/*",
       "build/icon.png",
       "package.json"
     ],

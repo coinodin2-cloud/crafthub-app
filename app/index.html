@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: http://localhost:* data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'none'">
+<title>Craft Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Heebo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="shell">
+  <aside id="side">
+    <div class="side-top">
+      <div class="brand"><div class="mark"></div><div class="wm">Craft <b>Hub</b></div></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="side-bottom" id="sideBottom"></div>
+  </aside>
+  <section id="main">
+    <header id="top">
+      <button class="icon-btn" id="backBtn" title="Back"></button>
+      <form id="searchForm" class="search"><span class="ic-slot" data-ic="search"></span><input id="searchIn" type="search" autocomplete="off"></form>
+      <span class="spacer"></span>
+      <div class="bell-wrap"><button class="icon-btn" id="bellBtn"></button><div id="notifMenu" class="menu"></div></div>
+      <div class="win-space"></div>
+    </header>
+    <div id="view"></div>
+  </section>
+</div>
+<div id="toasts"></div>
+<div id="updBar" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

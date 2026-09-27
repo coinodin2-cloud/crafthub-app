@@ -1,4 +1,4 @@
-// The only bridge between crafthubs.net and the computer. The site can install files, nothing more.
+// The bridge between the app's interface (app/) and the computer / crafthubs.net API.
 const { contextBridge, ipcRenderer } = require('electron');
 
 const listeners = new Set();
@@ -8,6 +8,12 @@ ipcRenderer.on('install-progress', (e, data) => listeners.forEach(fn => { try { 
 
 contextBridge.exposeInMainWorld('craftHubApp', {
   isApp: true,
+  site: ipcRenderer.sendSync('site-url'),
+  api: (path, opts = {}) => ipcRenderer.invoke('api', { path, method: opts.method, body: opts.body }),
+  login: () => ipcRenderer.invoke('login'),
+  logout: () => ipcRenderer.invoke('logout'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  onNotificationClick: (fn) => ipcRenderer.on('notif-click', (e, link) => fn(link)),
   platform: process.platform,
   install: (opts) => ipcRenderer.invoke('install', opts),
   uninstall: (opts) => ipcRenderer.invoke('uninstall', opts),

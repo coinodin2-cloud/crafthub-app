@@ -1,5 +1,5 @@
-// Craft Hub desktop app — shows crafthubs.net and installs content straight into Minecraft.
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme } = require('electron');
+// Craft Hub desktop app — its own interface (app/), data from crafthubs.net, installs straight into Minecraft.
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, net, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -32,51 +32,90 @@ function targetDir(type, s = readSettings()) {
 const safeName = n => String(n || 'file').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').replace(/^\.+/, '').slice(0, 150) || 'file';
 
 // ---------- window ----------
+// The window shows the app's own interface (app/index.html). crafthubs.net is only used as an API.
+const APP_DIR = path.join(__dirname, 'app');
 function createWindow() {
   nativeTheme.themeSource = 'dark';
   win = new BrowserWindow({
-    width: 1320, height: 860, minWidth: 900, minHeight: 600,
-    backgroundColor: '#0b0b0f',
+    width: 1320, height: 860, minWidth: 960, minHeight: 620,
+    backgroundColor: '#09090d',
     title: 'Craft Hub',
     icon: path.join(__dirname, 'build', 'icon.png'),
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#0b0b0f', symbolColor: '#e3b341', height: 38 },
+    titleBarOverlay: { color: '#09090d', symbolColor: '#e3b341', height: 38 },
     show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false }
   });
   Menu.setApplicationMenu(null);
   win.once('ready-to-show', () => win.show());
-  loadSite();
+  loadApp();
   // an update ignored for 3 weeks locks the app
-  win.webContents.on('did-navigate', () => enforceBlock());
-  win.webContents.on('did-navigate-in-page', () => enforceBlock());
-
-  // only crafthubs.net pages open inside the app; everything else goes to the normal browser
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isSite(url)) { win.loadURL(url); return { action: 'deny' }; }
-    if (/^https?:/i.test(url)) shell.openExternal(url);
-    return { action: 'deny' };
-  });
-  win.webContents.on('will-navigate', (e, url) => {
-    if (isSite(url) || isLogin(url)) return;
-    e.preventDefault();
-    if (/^https?:/i.test(url)) shell.openExternal(url);
-  });
-  win.webContents.on('did-fail-load', (e, code, desc, url, isMain) => {
-    if (isMain && code !== -3) win.loadFile(path.join(__dirname, 'offline.html'), { query: { url: SITE } });
-  });
-  // F5 reload, Ctrl+Shift+I dev tools (for us)
+  win.webContents.on('did-finish-load', () => enforceBlock());
+  // links never navigate the app window — web links open in the normal browser
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (!isAppPage(url)) { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F5') win.webContents.reload();
     if (input.control && input.shift && input.key.toLowerCase() === 'i') win.webContents.toggleDevTools();
-    if (input.alt && input.key === 'ArrowLeft' && win.webContents.canGoBack()) win.webContents.goBack();
   });
 }
+function loadApp() { win.loadFile(path.join(APP_DIR, 'index.html')); }
 const isSite = url => { try { return new URL(url).origin === SITE_ORIGIN; } catch { return false; } };
-// Discord / Google / Microsoft sign-in pages are allowed inside the window so logging in works
-const isLogin = url => { try { return /(^|\.)(discord\.com|accounts\.google\.com|appleid\.apple\.com)$/i.test(new URL(url).hostname); } catch { return false; } };
-function loadSite(p = '/') { win.loadURL(SITE + p, { userAgent: `${win.webContents.getUserAgent()} CraftHubApp/${app.getVersion()}` }); }
+// our own local pages (app/, blocked.html, offline.html)
+function isAppPage(url) {
+  try { return url.startsWith('file://') && path.resolve(decodeURIComponent(new URL(url).pathname).replace(/^\/([A-Za-z]:)/, '$1')).startsWith(__dirname); } catch { return false; }
+}
+const trusted = e => isAppPage(e.senderFrame.url);
+
+// ---------- crafthubs.net API (with the signed-in session's cookies) ----------
+function siteRequest(p, { method = 'GET', body } = {}) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = r => { if (!done) { done = true; resolve(r); } };
+    let req;
+    try { req = net.request({ method, url: SITE + p, useSessionCookies: true }); } catch { return finish({ status: 0 }); }
+    req.setHeader('X-Requested-With', 'fetch');
+    req.setHeader('Accept', 'application/json');
+    if (body !== undefined) req.setHeader('Content-Type', 'application/json');
+    const timer = setTimeout(() => { try { req.abort(); } catch { } finish({ status: 0 }); }, 15000);
+    req.on('response', res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => { clearTimeout(timer); let data = null; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { } finish({ status: res.statusCode, data }); });
+    });
+    req.on('error', () => { clearTimeout(timer); finish({ status: 0 }); });
+    if (body !== undefined) req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+ipcMain.handle('api', (e, { path: p, method, body } = {}) => {
+  if (!trusted(e) || !/^\/api\/[\w\-/.?=&%:]*$/.test(String(p))) return { status: 403, data: { error: 'forbidden' } };
+  if (method && !['GET', 'POST', 'PUT', 'DELETE'].includes(method)) return { status: 400 };
+  return siteRequest(p, { method, body });
+});
+// sign in: a small window with the real site's login (Discord / Google / email). Closes itself once signed in.
+ipcMain.handle('login', e => new Promise(resolve => {
+  if (!trusted(e)) return resolve(false);
+  const w = new BrowserWindow({ parent: win, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true } });
+  // Google refuses sign-in inside apps that announce themselves — use a plain Chrome user agent here
+  w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/\s(Electron|crafthub-app|Craft Hub)\/\S+/gi, ''));
+  w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  w.webContents.on('did-finish-load', () => { if (isSite(w.webContents.getURL())) w.webContents.executeJavaScript('setTimeout(() => { try { openLogin(); } catch (e) {} }, 700)').catch(() => { }); });
+  let finished = false;
+  const done = ok => { if (finished) return; finished = true; clearInterval(timer); if (!w.isDestroyed()) w.close(); resolve(ok); };
+  const timer = setInterval(async () => { const r = await siteRequest('/api/me'); if (r.data && r.data.user) done(true); }, 1500);
+  w.on('closed', () => done(false));
+  w.loadURL(SITE + '/');
+}));
+ipcMain.handle('logout', async e => {
+  if (!trusted(e)) return false;
+  await siteRequest('/auth/logout', { method: 'POST', body: {} });
+  await session.defaultSession.clearStorageData({ origin: SITE_ORIGIN, storages: ['cookies'] });
+  return true;
+});
+ipcMain.handle('open-external', (e, url) => { if (trusted(e) && /^https?:\/\/[^\s]+$/i.test(String(url))) shell.openExternal(String(url)); });
+ipcMain.on('site-url', e => { e.returnValue = SITE; });
 
 // ---------- downloads ----------
 function download(url, dest, onProgress, redirects = 0) {
@@ -109,7 +148,7 @@ function download(url, dest, onProgress, redirects = 0) {
 
 // install a project file into the right Minecraft folder
 ipcMain.handle('install', async (e, { slug, versionId, type, name }) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   if (!/^[a-z0-9-]{1,64}$/.test(String(slug)) || (versionId && !/^[\w-]{1,40}$/.test(String(versionId)))) throw new Error('bad_request');
   const s = readSettings();
   let dir = targetDir(type, s);
@@ -167,7 +206,7 @@ const readIndex = dir => { try { return JSON.parse(fs.readFileSync(indexFile(dir
 const writeIndex = (dir, idx) => { try { fs.writeFileSync(indexFile(dir), JSON.stringify(idx, null, 2)); } catch { } };
 
 ipcMain.handle('installed', (e) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const s = readSettings(), out = {};
   for (const type of ['mod', 'resourcepack', 'shader']) {
     const dir = targetDir(type, s);
@@ -177,7 +216,7 @@ ipcMain.handle('installed', (e) => {
   return out;
 });
 ipcMain.handle('uninstall', (e, { slug, type }) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const dir = targetDir(type);
   const idx = readIndex(dir);
   if (!idx[slug]) return { ok: false };
@@ -186,12 +225,12 @@ ipcMain.handle('uninstall', (e, { slug, type }) => {
   return { ok: true };
 });
 ipcMain.handle('settings', e => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const s = readSettings();
   return { ...s, mcExists: fs.existsSync(s.mcDir), version: app.getVersion() };
 });
 ipcMain.handle('choose-dir', async (e, which) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const s = readSettings();
   const r = await dialog.showOpenDialog(win, { title: which === 'plugins' ? 'תיקיית plugins של השרת' : 'תיקיית מיינקראפט (.minecraft)', defaultPath: which === 'plugins' ? s.pluginsDir || undefined : s.mcDir, properties: ['openDirectory'] });
   if (r.canceled || !r.filePaths[0]) return readSettings();
@@ -199,7 +238,7 @@ ipcMain.handle('choose-dir', async (e, which) => {
   return readSettings();
 });
 ipcMain.handle('open-folder', (e, type) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const dir = type === 'minecraft' ? readSettings().mcDir : targetDir(type);
   if (dir) { fs.mkdirSync(dir, { recursive: true }); shell.openPath(dir); }
 });
@@ -207,7 +246,7 @@ ipcMain.handle('check-update', async e => {
   if (!app.isPackaged) return { dev: true };
   try { const r = await autoUpdater.checkForUpdates(); return { version: r && r.updateInfo && r.updateInfo.version }; } catch (err) { return { error: err.message }; }
 });
-ipcMain.on('offline-retry', () => loadSite());
+ipcMain.on('offline-retry', () => loadApp());
 
 
 // ---------- play: Minecraft versions, loaders, mods, launcher ----------
@@ -223,7 +262,7 @@ function detectLoader(id, json) {
   return 'Vanilla';
 }
 ipcMain.handle('mc-versions', e => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const dir = path.join(readSettings().mcDir, 'versions');
   const out = [];
   let names = [];
@@ -240,7 +279,7 @@ ipcMain.handle('mc-versions', e => {
 });
 // mods currently in the mods folder (enabled / disabled)
 ipcMain.handle('mods-list', e => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const dir = targetDir('mod');
   const idx = readIndex(dir), bySlug = Object.fromEntries(Object.entries(idx).map(([slug, f]) => [f, slug]));
   let files = [];
@@ -251,7 +290,7 @@ ipcMain.handle('mods-list', e => {
   }).sort((a, b) => a.name.localeCompare(b.name));
 });
 ipcMain.handle('mods-toggle', (e, file) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const dir = targetDir('mod'), name = path.basename(String(file));
   const from = path.join(dir, name);
   if (!fs.existsSync(from) || !/\.jar(\.disabled)?$/i.test(name)) return { ok: false };
@@ -273,14 +312,14 @@ function getJson(url) {
 }
 const LOADER_META = { fabric: 'https://meta.fabricmc.net/v2', quilt: 'https://meta.quiltmc.org/v3' };
 ipcMain.handle('loader-game-versions', async (e, loader) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const base = LOADER_META[loader]; if (!base) throw new Error('bad_loader');
   const list = await getJson(`${base}/versions/game`);
   return list.filter(v => v.stable).map(v => v.version).slice(0, 60);
 });
 // adds a Fabric / Quilt version the official launcher can start (it downloads the libraries itself)
 ipcMain.handle('install-loader', async (e, { loader, mc }) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const base = LOADER_META[loader];
   if (!base || !/^[\w.-]{1,32}$/.test(String(mc))) throw new Error('bad_request');
   const loaders = await getJson(`${base}/versions/loader/${encodeURIComponent(mc)}`);
@@ -297,7 +336,7 @@ ipcMain.handle('install-loader', async (e, { loader, mc }) => {
 });
 // launcher profile "Craft Hub" set to the chosen version, then open the official launcher
 ipcMain.handle('launch', async (e, versionId) => {
-  if (!isSite(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   const s = readSettings();
   const id = String(versionId || '');
   if (!/^[\w.+ -]{1,80}$/.test(id) || !fs.existsSync(path.join(s.mcDir, 'versions', id, id + '.json'))) return { ok: false, error: 'no_version' };
@@ -325,14 +364,14 @@ ipcMain.handle('launch', async (e, versionId) => {
 });
 // Windows notifications (clicking opens the link inside the app)
 ipcMain.on('notify', (e, n) => {
-  if (!isSite(e.senderFrame.url) || !Notification.isSupported()) return;
+  if (!trusted(e) || !Notification.isSupported()) return;
   if (win && win.isFocused() && !n.force) return;
   const note = new Notification({ title: String(n.title || 'Craft Hub').slice(0, 100), body: String(n.body || '').slice(0, 300), icon: path.join(__dirname, 'build', 'icon.png'), silent: false });
   note.on('click', () => {
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.show(); win.focus();
-    if (n.link && /^\/[\w\-/?=&.%]*$/.test(n.link)) loadSite(n.link);
+    if (n.link && /^\/[\w\-/?=&.%]*$/.test(n.link)) win.webContents.send('notif-click', n.link);
   });
   note.show();
 });
@@ -358,18 +397,17 @@ function publicUpdateState() {
   return { ...updateState, available: !!p || updateState.available, version: (p && p.version) || updateState.version, daysLeft: p ? p.daysLeft : UPDATE_GRACE_DAYS, blocked: !!(p && p.blocked), current: app.getVersion() };
 }
 function pushUpdateState() { if (win && !win.isDestroyed()) win.webContents.send('update-state', publicUpdateState()); }
-const isAppPage = url => { try { return url.startsWith('file://') && decodeURIComponent(new URL(url).pathname).replace(/^\//, '').replace(/\//g, path.sep).startsWith(__dirname); } catch { return false; } };
 function enforceBlock() {
   const p = pendingUpdate();
-  if (p && p.blocked && win && !win.isDestroyed() && !isAppPage(win.webContents.getURL())) win.loadFile(path.join(__dirname, 'blocked.html'));
+  if (p && p.blocked && win && !win.isDestroyed() && !win.webContents.getURL().endsWith('blocked.html')) win.loadFile(path.join(__dirname, 'blocked.html'));
   return !!(p && p.blocked);
 }
 ipcMain.handle('update-state', e => {
-  if (!isSite(e.senderFrame.url) && !isAppPage(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   return publicUpdateState();
 });
 ipcMain.handle('install-update', async e => {
-  if (!isSite(e.senderFrame.url) && !isAppPage(e.senderFrame.url)) throw new Error('forbidden');
+  if (!trusted(e)) throw new Error('forbidden');
   if (updateState.downloaded) { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return { ok: true }; }
   if (!app.isPackaged) return { ok: false, error: 'dev' };
   try { await autoUpdater.checkForUpdates(); return { ok: true, downloading: true }; } catch (err) { return { ok: false, error: err.message }; }
