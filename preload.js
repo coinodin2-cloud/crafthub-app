@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('craftHubApp', {
   modsList: () => ipcRenderer.invoke('mods-list'),
   modsToggle: (file) => ipcRenderer.invoke('mods-toggle', file),
   notify: (n) => ipcRenderer.send('notify', n),
+  screenSources: () => ipcRenderer.invoke('screen-sources'),
+  screenPick: (id) => ipcRenderer.invoke('screen-pick', id),
   updateState: () => ipcRenderer.invoke('update-state'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateState: (fn) => { updListeners.add(fn); return () => updListeners.delete(fn); },

@@ -1,5 +1,5 @@
 // Craft Hub desktop app — its own interface (app/), data from crafthubs.net, installs straight into Minecraft.
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, net, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, net, session, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -184,6 +184,15 @@ ipcMain.handle('upload-file', async (e, { apiPath, field = 'file', fields = {}, 
     req.end();
   });
 });
+
+// ---------- screen sharing in calls ----------
+let pickedScreen = null;
+ipcMain.handle('screen-sources', async e => {
+  if (!trusted(e)) throw new Error('forbidden');
+  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 320, height: 180 } });
+  return list.filter(s => s.name !== 'Craft Hub').map(s => ({ id: s.id, name: s.name, screen: s.id.startsWith('screen:'), thumb: s.thumbnail.toDataURL() }));
+});
+ipcMain.handle('screen-pick', (e, id) => { if (!trusted(e)) return false; pickedScreen = String(id || '') || null; return true; });
 
 // ---------- downloads ----------
 // goes through Electron's net with the signed-in session, so the site knows who is downloading
@@ -439,6 +448,15 @@ else {
   app.whenReady().then(() => {
     // YouTube's embedded player refuses pages without a referrer (ours are local files), so present the site as the referrer
     session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (d, cb) => { d.requestHeaders.Referer = SITE_ORIGIN + '/'; cb({ requestHeaders: d.requestHeaders }); });
+    // calls: microphone / camera / screen only for the app's own pages
+    const ALLOWED_PERMS = ['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'notifications'];
+    session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(ALLOWED_PERMS.includes(perm) && isAppPage(wc.getURL())));
+    // screen sharing: the app first picks a screen/window (screen-pick), then asks for it
+    session.defaultSession.setDisplayMediaRequestHandler(async (request, cb) => {
+      const id = pickedScreen; pickedScreen = null;
+      if (!id) return cb({});
+      try { const src = (await desktopCapturer.getSources({ types: ['screen', 'window'] })).find(s => s.id === id); cb(src ? { video: src } : {}); } catch { cb({}); }
+    });
     createWindow(); setupUpdates();
   });
   app.on('window-all-closed', () => app.quit());

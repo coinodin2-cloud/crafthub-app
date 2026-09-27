@@ -677,3 +677,46 @@ button.nav-h.open .i{transform:rotate(180deg)}
 #nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
 #nav:not(:hover)::-webkit-scrollbar-thumb{background:transparent}
 #nav{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
+/* calls */
+#callBox{position:fixed;z-index:250;bottom:20px;inset-inline-start:20px;width:360px;border-radius:20px;overflow:hidden;background:#101015;border:1px solid var(--accent-line);box-shadow:0 24px 70px rgba(0,0,0,.6);display:flex;flex-direction:column}
+#callBox.big{inset:70px 20px 20px 20px;width:auto}
+.cb-stage{position:relative;height:200px;background:radial-gradient(circle at 50% 40%,rgba(227,179,65,.14),transparent 70%),#0b0b0f}
+#callBox.big .cb-stage{flex:1;height:auto}
+#callBox.has-video .cb-stage{height:230px}
+#callBox.big.has-video .cb-stage{height:auto}
+#callRemote{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0}
+#callBox.has-video #callRemote{opacity:1}
+#callBox.screen #callRemote{object-fit:contain;background:#000}
+#callLocal{position:absolute;bottom:10px;inset-inline-end:10px;width:110px;height:70px;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,.2);background:#000;transform:scaleX(-1)}
+#callBox.big #callLocal{width:220px;height:130px}
+#callLocal[hidden]{display:none}
+.cb-who{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.cb-who img{width:86px;height:86px;border-radius:50%;object-fit:cover;border:3px solid var(--accent-line)}
+.cb-who b{font-size:17px}
+.pulse{animation:cbPulse 1.6s ease-in-out infinite}
+@keyframes cbPulse{0%,100%{box-shadow:0 0 0 0 rgba(227,179,65,.5)}50%{box-shadow:0 0 0 14px rgba(227,179,65,0)}}
+.cb-bar{display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(20,20,26,.95);border-top:1px solid var(--border)}
+.cb-info{min-width:0}.cb-info b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cb-info small{color:var(--text-3);font-size:12px}
+.cb-btn{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:0;background:var(--surface-2);color:var(--text);cursor:pointer;transition:.15s;flex:none}
+.cb-btn:hover{background:#34343f}.cb-btn:disabled{opacity:.35;cursor:default}
+.cb-btn.off{background:rgba(239,90,90,.18);color:#ff8f8f}
+.cb-btn.on{background:var(--accent);color:#1a1405}
+.cb-btn.red{background:#e5484d;color:#fff}.cb-btn.red:hover{background:#c93a3f}
+.cb-btn.green{background:#2fb35a;color:#fff}.cb-btn.green:hover{background:#26994c}
+.cb-btn.lg{width:58px;height:58px}.cb-btn.lg .i{width:24px;height:24px}
+#callIn{position:fixed;inset:0;z-index:255;display:grid;place-items:center;background:rgba(6,6,9,.6);backdrop-filter:blur(4px)}
+.ci-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:30px 40px;border-color:var(--accent-line);text-align:center}
+.ci-card img{width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:8px}
+.ci-card b{font-size:20px}.ci-card small{color:var(--text-2)}
+.ss-pick{width:min(760px,94vw)}
+.ss-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;max-height:60vh;overflow-y:auto}
+.ss-src{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font:inherit;cursor:pointer}
+.ss-src:hover{border-color:var(--accent-line)}
+.ss-src img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000}
+.ss-src span{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.mic-meter{height:8px;border-radius:99px;background:var(--surface-2);margin:10px 0 6px;overflow:hidden}
+.mic-meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2fb35a,#e3b341,#e5484d);transition:width .08s}
+.av-prev video{width:100%;max-width:320px;border-radius:14px;background:#000;transform:scaleX(-1)}
+@media (max-width:900px){.av-grid{grid-template-columns:1fr}}
+#callBox{inset-inline-start:auto;left:20px;right:auto}#callBox.big{left:20px;right:290px}

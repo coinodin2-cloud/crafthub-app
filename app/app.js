@@ -1443,6 +1443,7 @@ async function aSettings(body, stale) {
       ${field('Gemini ' + t('ai_key'), secretInp('aiGeminiKey', c.aiGeminiKeySet))}${field('Claude ' + t('ai_model'), `<select name="aiModel">${(c.aiModels || []).map(m => `<option ${m === c.aiModel ? 'selected' : ''}>${m}</option>`).join('')}</select>`)}
       ${field('Claude ' + t('ai_key'), secretInp('aiKey', c.aiKeySet))}${field(t('ai_instr'), `<textarea name="aiInstructions" rows="4">${esc(c.aiInstructions || '')}</textarea>`, true)}</div></div>
     <div class="card"><div class="card-h">${ic('clock')}<h3>${t('s_autoreply')}</h3></div><div class="card-b form2">${toggle('autoReplyEnabled', c.autoReplyEnabled, t('ar_on'))}${field(t('ar_minutes'), inp('autoReplyMinutes', c.autoReplyMinutes, 'class="ltr"'))}${field(t('ar_he'), `<textarea name="autoReplyHe" rows="3">${esc(c.autoReplyHe || '')}</textarea>`, true)}${field(t('ar_en'), `<textarea name="autoReplyEn" rows="3" class="ltr">${esc(c.autoReplyEn || '')}</textarea>`, true)}</div></div>
+    <div class="card"><div class="card-h">${ic('phone')}<h3>${LANG === 'he' ? 'שיחות — שרת ממסר (TURN, לא חובה)' : 'Calls — relay server (TURN, optional)'}</h3></div><div class="card-b form2">${field('TURN URL', inp('turnUrl', c.turnUrl, 'class="ltr" placeholder="turn:crafthubs.net:3478"'), true)}${field('TURN user', inp('turnUser', c.turnUser, 'class="ltr"'))}${field('TURN password', secretInp('turnPass', c.turnPassSet))}<p class="faint full" style="margin:0;font-size:13px">${LANG === 'he' ? 'רוב השיחות מתחברות בלי זה. אם יש משתמשים ששיחות אצלם לא מתחברות — מתקינים coturn על ה-VPS וממלאים כאן.' : 'Most calls connect without it. If some users cannot connect, install coturn on the VPS and fill this in.'}</p></div></div>
     <button class="btn primary lg" style="align-self:flex-start">${ic('check', 'sm')} ${t('save')}</button></form>`;
   $('#cfgF').onsubmit = async e => {
     e.preventDefault(); const f = e.target, data = {};
@@ -2554,6 +2555,312 @@ renderNav = function () {
 // a notification about a message opens the chat
 const _openLinkS = openLink;
 openLink = function (l) { const m = String(l || '').match(/^\/messages\/([\w:.@-]+)/); if (m) return go('messages', { id: m[1] }); return _openLinkS(l); };
+
+/* ================= voice / video calls ================= */
+Object.assign(ICONS, {
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/>',
+  video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3Z"/>',
+  videooff: '<path d="M2 6h9M16 10l6-3v10l-6-3M16 12v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8M3 3l18 18"/>',
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>',
+  micoff: '<path d="M9 5a3 3 0 0 1 6 0v5M15 13a3 3 0 0 1-5.6 1.4M5 11a7 7 0 0 0 11.2 5.6M19 11a7 7 0 0 1-.6 2.9M12 18v4M3 3l18 18"/>',
+  screen: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  hangup: '<path d="M3 15c5-5 13-5 18 0l-2 3-4-1v-3a10 10 0 0 0-6 0v3l-4 1Z" fill="currentColor"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
+});
+Object.assign(I18N.he, {
+  call_voice: 'שיחה קולית', call_video: 'שיחת וידאו', call_calling: 'מתקשר…', call_ringing_in: 'מתקשר אליך', call_video_in: 'שיחת וידאו נכנסת', call_answer: 'ענה', call_decline: 'דחה',
+  call_connecting: 'מתחבר…', call_ended: 'השיחה הסתיימה', call_declined: 'השיחה נדחתה', call_missed: 'אין מענה', call_busy: 'לא הצלחתי לגשת למיקרופון/מצלמה', call_lost: 'החיבור נותק',
+  call_mute: 'השתק', call_cam: 'מצלמה', call_share: 'שיתוף מסך', call_stop_share: 'הפסק שיתוף', call_hang: 'נתק', call_share_perm: 'שיתוף מסך דורש אישור מהצוות', call_pick_screen: 'מה לשתף?', call_screen_whole: 'מסך', call_screen_window: 'חלון', call_sharing: 'משתף מסך',
+  av_title: 'קול ווידאו', av_mic: 'מיקרופון', av_cam: 'מצלמה', av_spk: 'רמקולים / אוזניות', av_default: 'ברירת מחדל', av_test_mic: 'דבר כדי לבדוק את המיקרופון', av_test_spk: 'בדיקת רמקול', av_cam_on: 'הצג מצלמה', av_cam_off: 'כבה תצוגה', av_ns: 'סינון רעשי רקע', av_ec: 'ביטול הד', av_agc: 'כיוון עוצמה אוטומטי', av_perm: 'צריך לאשר גישה למיקרופון / מצלמה',
+  ss_perm: 'הרשאת שיתוף מסך', ss_on: 'תן שיתוף מסך', ss_off: 'הסר שיתוף מסך', ss_badge: 'משתף מסך'
+});
+Object.assign(I18N.en, {
+  call_voice: 'Voice call', call_video: 'Video call', call_calling: 'Calling…', call_ringing_in: 'is calling you', call_video_in: 'Incoming video call', call_answer: 'Answer', call_decline: 'Decline',
+  call_connecting: 'Connecting…', call_ended: 'Call ended', call_declined: 'Call declined', call_missed: 'No answer', call_busy: 'Could not access the microphone/camera', call_lost: 'Connection lost',
+  call_mute: 'Mute', call_cam: 'Camera', call_share: 'Share screen', call_stop_share: 'Stop sharing', call_hang: 'Hang up', call_share_perm: 'Screen sharing needs staff approval', call_pick_screen: 'What to share?', call_screen_whole: 'Screen', call_screen_window: 'Window', call_sharing: 'Sharing screen',
+  av_title: 'Voice & video', av_mic: 'Microphone', av_cam: 'Camera', av_spk: 'Speakers / headphones', av_default: 'Default', av_test_mic: 'Speak to test the microphone', av_test_spk: 'Test speaker', av_cam_on: 'Show camera', av_cam_off: 'Stop preview', av_ns: 'Noise suppression', av_ec: 'Echo cancellation', av_agc: 'Auto gain', av_perm: 'Allow access to the microphone / camera',
+  ss_perm: 'Screen share permission', ss_on: 'Allow screen share', ss_off: 'Remove screen share', ss_badge: 'Can share screen'
+});
+
+// saved devices + audio processing
+const AV = (() => { let v = {}; try { v = JSON.parse(localStorage.getItem('ch_av') || '{}'); } catch { } return { mic: '', cam: '', spk: '', ns: true, ec: true, agc: true, ...v }; })();
+const saveAV = () => { try { localStorage.setItem('ch_av', JSON.stringify(AV)); } catch { } };
+const audioC = () => ({ deviceId: AV.mic ? { exact: AV.mic } : undefined, noiseSuppression: AV.ns, echoCancellation: AV.ec, autoGainControl: AV.agc });
+const videoC = () => ({ deviceId: AV.cam ? { exact: AV.cam } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } });
+
+// ringtone made with WebAudio (no sound files)
+const RING = { ctx: null, timer: null };
+function ring(on, outgoing) {
+  clearInterval(RING.timer); RING.timer = null;
+  if (!on) return;
+  try { RING.ctx = RING.ctx || new AudioContext(); } catch { return; }
+  const beep = () => { const c = RING.ctx, now = c.currentTime; [0, .22].forEach((d, i) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = outgoing ? 440 : (i ? 660 : 880); g.gain.setValueAtTime(0, now + d); g.gain.linearRampToValueAtTime(.12, now + d + .02); g.gain.linearRampToValueAtTime(0, now + d + .18); o.connect(g).connect(c.destination); o.start(now + d); o.stop(now + d + .2); }); };
+  beep(); RING.timer = setInterval(beep, outgoing ? 3000 : 1500);
+}
+
+const CALL = { id: null, with: null, video: false, status: '', role: '', pc: null, local: null, screen: null, since: 0, startedAt: 0, ice: null, muted: false, camOff: false, remoteScreen: false, pendingIce: [], seenIncoming: new Set(), tick: null };
+async function iceConfig() { if (!CALL.ice) { try { CALL.ice = await api('/api/calls/ice'); } catch { CALL.ice = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }], canScreenShare: false }; } } return CALL.ice; }
+const sig = (kind, data) => api(`/api/calls/${CALL.id}/signal`, { method: 'POST', body: { kind, data } });
+
+async function startCall(user, video) {
+  if (CALL.id) return toast(LANG === 'he' ? 'אתה כבר בשיחה' : 'Already in a call', 'err');
+  try { CALL.local = await navigator.mediaDevices.getUserMedia({ audio: audioC(), video: video ? videoC() : false }); }
+  catch { return toast(t('call_busy'), 'err'); }
+  let r;
+  try { r = await api('/api/calls', { method: 'POST', body: { to: user.id, video } }); }
+  catch (err) { stopTracks(); return toast(err.message, 'err'); }
+  Object.assign(CALL, { id: r.id, with: r.with, video, status: 'ringing', role: 'caller', since: 0, startedAt: 0, muted: false, camOff: false, remoteScreen: false, pendingIce: [] });
+  ring(true, true); drawCall(); schedulePoll(700);
+}
+async function answerCall(c, accept) {
+  $('#callIn') && $('#callIn').remove(); ring(false);
+  if (!accept) { api(`/api/calls/${c.id}/answer`, { method: 'POST', body: { accept: false } }).catch(() => { }); return; }
+  try { CALL.local = await navigator.mediaDevices.getUserMedia({ audio: audioC(), video: c.video ? videoC() : false }); }
+  catch { toast(t('call_busy'), 'err'); api(`/api/calls/${c.id}/answer`, { method: 'POST', body: { accept: false } }).catch(() => { }); return; }
+  let r;
+  try { r = await api(`/api/calls/${c.id}/answer`, { method: 'POST', body: { accept: true } }); } catch (err) { stopTracks(); return toast(err.message, 'err'); }
+  Object.assign(CALL, { id: c.id, with: r.with, video: c.video, status: 'connecting', role: 'callee', since: 0, startedAt: 0, muted: false, camOff: false, remoteScreen: false, pendingIce: [] });
+  await makePeer();
+  drawCall(); schedulePoll(700);
+}
+async function makePeer() {
+  const cfg = await iceConfig();
+  const pc = new RTCPeerConnection({ iceServers: cfg.iceServers });
+  CALL.pc = pc;
+  CALL.local.getTracks().forEach(tr => pc.addTrack(tr, CALL.local));
+  // a video slot always exists, so a voice call can switch the camera or screen on without renegotiating
+  if (!CALL.local.getVideoTracks().length && CALL.role === 'caller') pc.addTransceiver('video', { direction: 'sendrecv' });
+  pc.onicecandidate = e => { if (e.candidate) sig('ice', e.candidate.toJSON()).catch(() => { }); };
+  CALL.remote = new MediaStream();
+  pc.ontrack = e => { if (!CALL.remote.getTracks().includes(e.track)) CALL.remote.addTrack(e.track); e.track.onunmute = e.track.onmute = () => drawCall(); const v = $('#callRemote'); if (v && v.srcObject !== CALL.remote) { v.srcObject = CALL.remote; if (AV.spk && v.setSinkId) v.setSinkId(AV.spk).catch(() => { }); } drawCall(); };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected' && CALL.status !== 'active') { CALL.status = 'active'; CALL.startedAt = Date.now(); drawCall(); }
+    if (pc.connectionState === 'failed') { toast(t('call_lost'), 'err'); hangUp(true); }
+  };
+  return pc;
+}
+async function handleSignal(s) {
+  const pc = CALL.pc;
+  if (s.kind === 'accepted' && CALL.role === 'caller') {
+    ring(false); CALL.status = 'connecting'; drawCall();
+    const p = await makePeer();
+    await p.setLocalDescription(await p.createOffer());
+    await sig('offer', p.localDescription.toJSON());
+  } else if (s.kind === 'offer' && pc) {
+    await pc.setRemoteDescription(s.data);
+    // use the video slot from the offer for our camera / screen later
+    const vt = pc.getTransceivers().find(tr => tr.receiver.track && tr.receiver.track.kind === 'video');
+    if (vt) { vt.direction = 'sendrecv'; const cam = CALL.local.getVideoTracks()[0]; if (cam && !vt.sender.track) await vt.sender.replaceTrack(cam); }
+    await pc.setLocalDescription(await pc.createAnswer());
+    await sig('answer', pc.localDescription.toJSON());
+    for (const c of CALL.pendingIce.splice(0)) await pc.addIceCandidate(c).catch(() => { });
+  } else if (s.kind === 'answer' && pc) {
+    await pc.setRemoteDescription(s.data);
+    for (const c of CALL.pendingIce.splice(0)) await pc.addIceCandidate(c).catch(() => { });
+  } else if (s.kind === 'ice') {
+    if (pc && pc.remoteDescription) await pc.addIceCandidate(s.data).catch(() => { }); else CALL.pendingIce.push(s.data);
+  } else if (s.kind === 'screen') { CALL.remoteScreen = !!s.data.on; drawCall(); }
+  else if (s.kind === 'media') { CALL.remoteCamOff = !!s.data.camOff; CALL.remoteMuted = !!s.data.muted; drawCall(); }
+  else if (s.kind === 'ended') { const why = s.data.reason; toast(why === 'declined' ? t('call_declined') : why === 'missed' ? t('call_missed') : t('call_ended')); hangUp(true); }
+}
+function stopTracks() { [CALL.local, CALL.screen].forEach(st => st && st.getTracks().forEach(tr => tr.stop())); CALL.local = CALL.screen = null; }
+function hangUp(remote) {
+  if (!CALL.id) return;
+  if (!remote) api(`/api/calls/${CALL.id}/end`, { method: 'POST', body: {} }).catch(() => { });
+  ring(false);
+  try { CALL.pc && CALL.pc.close(); } catch { }
+  stopTracks();
+  Object.assign(CALL, { id: null, pc: null, status: '', with: null, remoteScreen: false });
+  clearInterval(CALL.tick); CALL.tick = null;
+  const box = $('#callBox'); if (box) box.remove();
+  schedulePoll(2500);
+}
+async function toggleMute() { CALL.muted = !CALL.muted; CALL.local && CALL.local.getAudioTracks().forEach(tr => { tr.enabled = !CALL.muted; }); sig('media', { muted: CALL.muted, camOff: CALL.camOff }).catch(() => { }); drawCall(); }
+async function toggleCam() {
+  const sender = CALL.pc && CALL.pc.getTransceivers().map(tr => tr.sender).find(sd => (sd.track && sd.track.kind === 'video') || !sd.track);
+  let cam = CALL.local.getVideoTracks()[0];
+  if (!cam) {
+    try { const st = await navigator.mediaDevices.getUserMedia({ video: videoC() }); cam = st.getVideoTracks()[0]; CALL.local.addTrack(cam); } catch { return toast(t('call_busy'), 'err'); }
+    CALL.camOff = false;
+  } else CALL.camOff = !CALL.camOff;
+  cam.enabled = !CALL.camOff;
+  if (sender && !CALL.screen) await sender.replaceTrack(cam);
+  sig('media', { muted: CALL.muted, camOff: CALL.camOff }).catch(() => { });
+  drawCall();
+}
+async function toggleScreen() {
+  const cfg = await iceConfig();
+  if (!CALL.screen && !cfg.canScreenShare) return toast(t('call_share_perm'), 'err');
+  const sender = CALL.pc && CALL.pc.getTransceivers().map(tr => tr.sender).find(sd => (sd.track && sd.track.kind === 'video') || !sd.track);
+  if (CALL.screen) {
+    CALL.screen.getTracks().forEach(tr => tr.stop()); CALL.screen = null;
+    const cam = CALL.local.getVideoTracks()[0];
+    if (sender) await sender.replaceTrack(cam && !CALL.camOff ? cam : null);
+    sig('screen', { on: false }).catch(() => { });
+    return drawCall();
+  }
+  const id = await pickScreen(); if (!id) return;
+  await B.screenPick(id);
+  try { CALL.screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); } catch { return; }
+  try { await sig('screen', { on: true }); } catch (err) { CALL.screen.getTracks().forEach(tr => tr.stop()); CALL.screen = null; return toast(err.message, 'err'); }
+  const tr = CALL.screen.getVideoTracks()[0];
+  tr.onended = () => { if (CALL.screen) toggleScreen(); };
+  if (sender) await sender.replaceTrack(tr);
+  drawCall();
+}
+function pickScreen() {
+  return new Promise(async resolve => {
+    let list = [];
+    try { list = await B.screenSources(); } catch { return resolve(null); }
+    const m = document.createElement('div'); m.className = 'modal-back'; m.style.zIndex = 260;
+    m.innerHTML = `<div class="card ss-pick"><div class="card-h">${ic('screen')}<h3>${t('call_pick_screen')}</h3><span class="spacer"></span><button class="icon-btn" data-x>✕</button></div>
+      <div class="card-b ss-grid">${list.map(s => `<button class="ss-src" data-id="${esc(s.id)}"><img src="${s.thumb}" alt=""><span>${s.screen ? ic('screen', 'sm') + ' ' + t('call_screen_whole') : esc(s.name)}</span></button>`).join('')}</div></div>`;
+    document.body.appendChild(m);
+    const done = v => { m.remove(); resolve(v); };
+    m.querySelector('[data-x]').onclick = () => done(null);
+    m.onclick = e => { if (e.target === m) done(null); };
+    m.querySelectorAll('[data-id]').forEach(b => b.onclick = () => done(b.dataset.id));
+  });
+}
+const fmtDur = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function drawCall() {
+  if (!CALL.id) return;
+  let box = $('#callBox');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'callBox';
+    box.innerHTML = `<div class="cb-stage"><video id="callRemote" autoplay playsinline></video><div class="cb-who"></div><video id="callLocal" autoplay playsinline muted></video></div>
+      <div class="cb-bar"><div class="cb-info"><b class="cb-name"></b><small class="cb-state"></small></div><span class="spacer"></span>
+        <button class="cb-btn" data-a="mute"></button><button class="cb-btn" data-a="cam"></button><button class="cb-btn" data-a="screen"></button><button class="cb-btn" data-a="big" title="">${ic('expand', 'sm')}</button><button class="cb-btn red" data-a="hang" title="${t('call_hang')}">${ic('hangup')}</button></div>`;
+    document.body.appendChild(box);
+    box.querySelector('[data-a="mute"]').onclick = toggleMute;
+    box.querySelector('[data-a="cam"]').onclick = toggleCam;
+    box.querySelector('[data-a="screen"]').onclick = toggleScreen;
+    box.querySelector('[data-a="big"]').onclick = () => box.classList.toggle('big');
+    box.querySelector('[data-a="hang"]').onclick = () => hangUp(false);
+    CALL.tick = setInterval(drawCall, 1000);
+  }
+  const w = CALL.with || {};
+  const loc = $('#callLocal'), rem = $('#callRemote');
+  const myVideo = CALL.screen || (CALL.local && CALL.local.getVideoTracks().length && !CALL.camOff ? CALL.local : null);
+  if (loc.srcObject !== myVideo) loc.srcObject = myVideo;
+  loc.hidden = !myVideo;
+  const remoteHasVideo = rem.srcObject && rem.srcObject.getVideoTracks().some(tr => tr.readyState === 'live' && !tr.muted) && !CALL.remoteCamOff || CALL.remoteScreen;
+  box.classList.toggle('has-video', !!remoteHasVideo);
+  box.classList.toggle('screen', !!CALL.remoteScreen);
+  box.querySelector('.cb-who').innerHTML = remoteHasVideo ? '' : `<img src="${avatarOf(w)}" alt="" class="${CALL.status === 'active' ? '' : 'pulse'}"><b>${esc(w.name || '')}</b>`;
+  box.querySelector('.cb-name').innerHTML = `${esc(w.name || '')}${w.verified ? ' ' + vcheck() : ''}`;
+  box.querySelector('.cb-state').textContent = CALL.status === 'ringing' ? t('call_calling') : CALL.status === 'connecting' ? t('call_connecting') : fmtDur(Date.now() - CALL.startedAt) + (CALL.screen ? ' · ' + t('call_sharing') : '') + (CALL.remoteMuted ? ' · 🔇' : '');
+  const b = a => box.querySelector(`[data-a="${a}"]`);
+  b('mute').innerHTML = ic(CALL.muted ? 'micoff' : 'mic', 'sm'); b('mute').classList.toggle('off', CALL.muted); b('mute').title = t('call_mute');
+  const camOn = CALL.local && CALL.local.getVideoTracks().length && !CALL.camOff;
+  b('cam').innerHTML = ic(camOn ? 'video' : 'videooff', 'sm'); b('cam').classList.toggle('off', !camOn); b('cam').title = t('call_cam');
+  b('cam').disabled = b('screen').disabled = CALL.status !== 'active';
+  b('screen').innerHTML = ic('screen', 'sm'); b('screen').classList.toggle('on', !!CALL.screen); b('screen').title = CALL.screen ? t('call_stop_share') : t('call_share');
+}
+function showIncoming(c) {
+  if ($('#callIn') || CALL.id) return;
+  const m = document.createElement('div'); m.id = 'callIn';
+  m.innerHTML = `<div class="ci-card card"><img src="${avatarOf(c.from)}" alt="" class="pulse"><b>${esc(c.from.name)}${c.from.verified ? ' ' + vcheck() : ''}</b><small>${c.video ? t('call_video_in') : t('call_ringing_in')}</small>
+    <div class="row" style="gap:14px;justify-content:center;margin-top:16px"><button class="cb-btn red lg" data-n title="${t('call_decline')}">${ic('hangup')}</button><button class="cb-btn green lg" data-y title="${t('call_answer')}">${ic(c.video ? 'video' : 'phone')}</button></div></div>`;
+  document.body.appendChild(m);
+  m.querySelector('[data-y]').onclick = () => answerCall(c, true);
+  m.querySelector('[data-n]').onclick = () => answerCall(c, false);
+  ring(true, false);
+  if (!document.hasFocus()) B.notify({ title: c.from.name, body: c.video ? t('call_video_in') : t('call_ringing_in'), force: true });
+}
+// one loop: incoming calls while idle, setup messages while in a call
+let callPollT = null;
+function schedulePoll(ms) { clearTimeout(callPollT); callPollT = setTimeout(pollCalls, ms); }
+async function pollCalls() {
+  if (!S.me || !S.me.user) return schedulePoll(5000);
+  try {
+    const r = await api('/api/calls/poll' + (CALL.id ? `?id=${CALL.id}&since=${CALL.since}` : ''));
+    const inc = r.incoming.find(c => !CALL.seenIncoming.has(c.id));
+    if (!CALL.id && inc) { CALL.seenIncoming.add(inc.id); showIncoming(inc); }
+    if (!r.incoming.length && $('#callIn')) { $('#callIn').remove(); ring(false); }
+    for (const s of r.signals) { CALL.since = Math.max(CALL.since, s.n); try { await handleSignal(s); } catch (e) { console.warn('signal', e); } }
+    if (CALL.id && r.call && r.call.status === 'ended') hangUp(true);
+  } catch { }
+  schedulePoll(CALL.id ? 700 : 2500);
+}
+schedulePoll(3000);
+window.addEventListener('beforeunload', () => { if (CALL.id) hangUp(false); });
+
+/* ---------- call buttons: chat header + profile ---------- */
+const _vMessagesC = vMessages;
+vMessages = async function (p, stale) {
+  await _vMessagesC(p, stale);
+  if (stale()) return;
+  const head = view.querySelector('.dm-head');
+  if (!head || !DM.with || !view.querySelector('#dmF')) return;
+  head.insertAdjacentHTML('beforeend', `<span class="spacer"></span><button class="icon-btn lg" data-call="0" title="${t('call_voice')}">${ic('phone')}</button><button class="icon-btn lg" data-call="1" title="${t('call_video')}">${ic('video')}</button>`);
+  head.querySelectorAll('[data-call]').forEach(b => b.onclick = e => { e.stopPropagation(); startCall({ id: DM.with }, b.dataset.call === '1'); });
+};
+const _vUserC = vUser;
+vUser = async function (params, stale) {
+  await _vUserC(params, stale);
+  if (stale()) return;
+  const dmB = $('#dmB');
+  if (dmB && !$('#callB')) {
+    dmB.insertAdjacentHTML('afterend', `<button class="btn" id="callB" title="${t('call_voice')}">${ic('phone', 'sm')}</button><button class="btn" id="vcallB" title="${t('call_video')}">${ic('video', 'sm')}</button>`);
+    $('#callB').onclick = () => startCall({ id: params.id }, false);
+    $('#vcallB').onclick = () => startCall({ id: params.id }, true);
+  }
+  // staff: give / remove the screen share permission
+  if (hasPerm('moderation') && S.me.user.id !== params.id && !$('#ssB')) {
+    const x = await api('/api/users/' + encodeURIComponent(params.id) + '/extra').catch(() => null);
+    const row = ($('#frB') && $('#frB').parentElement) || view.querySelector('.phead');
+    if (!x || !row || stale()) return;
+    row.insertAdjacentHTML('beforeend', `<button class="btn ${x.screenShare ? 'ok' : ''}" id="ssB">${ic('screen', 'sm')} ${x.screenShare ? t('ss_off') : t('ss_on')}</button>`);
+    $('#ssB').onclick = async () => { try { await api('/api/admin/users/' + encodeURIComponent(params.id) + '/screenshare', { method: 'POST', body: {} }); go('user', { id: params.id }, true); } catch (err) { toast(err.message, 'err'); } };
+  }
+};
+
+/* ---------- settings: microphone, camera, speakers ---------- */
+const _vSettingsAV = vSettings;
+vSettings = async function (p, stale) {
+  await _vSettingsAV(p, stale);
+  if (stale()) return;
+  const v = view.querySelector('.view-in'); if (!v) return;
+  v.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px" id="avCard"><div class="card-h">${ic('mic')}<h3>${t('av_title')}</h3></div><div class="card-b av-grid">
+    <div><label class="lbl">${t('av_mic')}</label><select id="avMic"></select><div class="mic-meter"><i id="avLvl"></i></div><small class="faint">${t('av_test_mic')}</small></div>
+    <div><label class="lbl">${t('av_spk')}</label><select id="avSpk"></select><button class="btn" id="avSpkT" style="margin-top:10px">${ic('play2', 'sm')} ${t('av_test_spk')}</button></div>
+    <div><label class="lbl">${t('av_cam')}</label><select id="avCam"></select><button class="btn" id="avCamT" style="margin-top:10px">${ic('video', 'sm')} ${t('av_cam_on')}</button></div>
+    <div class="av-prev"><video id="avPrev" autoplay playsinline muted hidden></video></div>
+    <div class="full row" style="gap:18px;flex-wrap:wrap">${[['ns', 'av_ns'], ['ec', 'av_ec'], ['agc', 'av_agc']].map(([k, l]) => `<div class="row" style="gap:10px"><label class="tgl"><input type="checkbox" data-av="${k}" ${AV[k] ? 'checked' : ''}><span></span></label> ${t(l)}</div>`).join('')}</div>
+  </div></div>`);
+  let micStream = null, camStream = null, raf = 0, actx = null;
+  const stopAll = () => { cancelAnimationFrame(raf); [micStream, camStream].forEach(s => s && s.getTracks().forEach(tr => tr.stop())); micStream = camStream = null; if (actx) actx.close().catch(() => { }); actx = null; };
+  const meter = async () => {
+    if (micStream) micStream.getTracks().forEach(tr => tr.stop());
+    cancelAnimationFrame(raf);
+    try { micStream = await navigator.mediaDevices.getUserMedia({ audio: audioC() }); } catch { $('#avLvl').parentElement.nextElementSibling.textContent = t('av_perm'); return; }
+    actx = actx || new AudioContext();
+    const an = actx.createAnalyser(); an.fftSize = 512; actx.createMediaStreamSource(micStream).connect(an);
+    const data = new Uint8Array(an.fftSize);
+    const loop = () => { if (!document.body.contains($('#avLvl') || document.createElement('i'))) return stopAll(); an.getByteTimeDomainData(data); let m = 0; for (const x of data) m = Math.max(m, Math.abs(x - 128)); $('#avLvl').style.width = Math.min(100, m / 128 * 180) + '%'; raf = requestAnimationFrame(loop); };
+    loop();
+  };
+  const fill = async () => {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const opt = (kind, cur) => `<option value="">${t('av_default')}</option>` + devs.filter(d => d.kind === kind && d.deviceId && d.deviceId !== 'default').map(d => `<option value="${esc(d.deviceId)}" ${d.deviceId === cur ? 'selected' : ''}>${esc(d.label || kind)}</option>`).join('');
+    $('#avMic').innerHTML = opt('audioinput', AV.mic); $('#avSpk').innerHTML = opt('audiooutput', AV.spk); $('#avCam').innerHTML = opt('videoinput', AV.cam);
+  };
+  await meter(); await fill();
+  $('#avMic').onchange = e => { AV.mic = e.target.value; saveAV(); meter(); };
+  $('#avSpk').onchange = e => { AV.spk = e.target.value; saveAV(); };
+  $('#avCam').onchange = e => { AV.cam = e.target.value; saveAV(); if (camStream) { camStream.getTracks().forEach(tr => tr.stop()); camStream = null; $('#avCamT').click(); } };
+  view.querySelectorAll('[data-av]').forEach(c => c.onchange = () => { AV[c.dataset.av] = c.checked; saveAV(); meter(); });
+  $('#avSpkT').onclick = () => { const a = new Audio(); const c = new AudioContext(), o = c.createOscillator(), g = c.createGain(), dst = c.createMediaStreamDestination(); o.frequency.value = 523; g.gain.value = .15; o.connect(g).connect(dst); o.start(); setTimeout(() => { o.stop(); c.close(); }, 700); a.srcObject = dst.stream; (AV.spk && a.setSinkId ? a.setSinkId(AV.spk) : Promise.resolve()).catch(() => { }).then(() => a.play()); };
+  $('#avCamT').onclick = async () => {
+    const vid = $('#avPrev');
+    if (camStream) { camStream.getTracks().forEach(tr => tr.stop()); camStream = null; vid.hidden = true; $('#avCamT').innerHTML = `${ic('video', 'sm')} ${t('av_cam_on')}`; return; }
+    try { camStream = await navigator.mediaDevices.getUserMedia({ video: videoC() }); } catch { return toast(t('av_perm'), 'err'); }
+    vid.srcObject = camStream; vid.hidden = false; $('#avCamT').innerHTML = `${ic('videooff', 'sm')} ${t('av_cam_off')}`; fill();
+  };
+  // leaving the settings page releases the microphone / camera
+  const stopOnLeave = setInterval(() => { if (S.route !== 'settings' || !document.body.contains($('#avCard') || document.createElement('i'))) { clearInterval(stopOnLeave); stopAll(); } }, 1000);
+};
 
 /* ================= loader (like the site) + sign-out confirmation ================= */
 Object.assign(I18N.he, { lo_title: 'להתנתק?', lo_text: 'בטוח שאתה רוצה להתנתק מהחשבון?', lo_yes: 'כן, התנתק', lo_no: 'ביטול' });
