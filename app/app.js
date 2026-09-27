@@ -1253,12 +1253,7 @@ $('#searchIn').oninput = e => { if (S.route === 'discover') { DISC.q = e.target.
 document.querySelector('[data-ic="search"]').outerHTML = ic('search', 'sm');
 document.addEventListener('keydown', e => { if (e.altKey && e.key === 'ArrowLeft') $('#backBtn').click(); if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#searchIn').focus(); } });
 setInterval(() => { if (offline) api('/api/site').then(() => go(S.route, S.params, true)).catch(() => { }); }, 15000);
-// start right away; account and site info arrive in the background
-applyLang();
-drawBell();
-go('home', {}, true);
-api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
-loadMe();
+// (the app starts at the very end of this file, after every layer below has replaced its views)
 
 /* ================= the whole admin panel inside the app ================= */
 Object.assign(I18N.he, {
@@ -2155,3 +2150,14 @@ api = async function (path, opts) {
   try { return await _apiBan(path, opts); }
   catch (err) { if (err.status === 403 && err.data && err.data.banned && err.data.banned.full) showBanScreen(err.data.banned); throw err; }
 };
+
+/* ================= start ================= */
+// runs last, so every view above is the newest version. Start right away; account and site info arrive in the background,
+// then the first screen is drawn again with them (home background, staff buttons).
+applyLang();
+drawBell();
+go('home', {}, true);
+Promise.all([
+  api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); }).catch(() => { }),
+  loadMe()
+]).then(() => { if (['home', 'discover'].includes(S.route)) go(S.route, S.params, true); });
