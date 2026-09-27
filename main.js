@@ -69,12 +69,12 @@ function isAppPage(url) {
 const trusted = e => isAppPage(e.senderFrame.url);
 
 // ---------- crafthubs.net API (with the signed-in session's cookies) ----------
-function siteRequest(p, { method = 'GET', body } = {}) {
+function siteRequest(p, { method = 'GET', body } = {}, ses) {
   return new Promise(resolve => {
     let done = false;
     const finish = r => { if (!done) { done = true; resolve(r); } };
     let req;
-    try { req = net.request({ method, url: SITE + p, useSessionCookies: true }); } catch { return finish({ status: 0 }); }
+    try { req = net.request({ method, url: SITE + p, session: ses || session.defaultSession, useSessionCookies: true }); } catch { return finish({ status: 0 }); }
     req.setHeader('X-Requested-With', 'fetch');
     req.setHeader('Accept', 'application/json');
     if (body !== undefined) req.setHeader('Content-Type', 'application/json');
@@ -92,7 +92,7 @@ function siteRequest(p, { method = 'GET', body } = {}) {
 ipcMain.handle('api', (e, { path: p, method, body } = {}) => {
   if (!trusted(e) || !/^\/api\/[\w\-/.?=&%:]*$/.test(String(p))) return { status: 403, data: { error: 'forbidden' } };
   if (method && !['GET', 'POST', 'PUT', 'DELETE'].includes(method)) return { status: 400 };
-  return siteRequest(p, { method, body });
+  return siteRequest(p, { method, body }, e.sender.session);
 });
 // sign in: a small window with the Craft Hub login page (Discord / Google / email). Closes itself once signed in.
 ipcMain.handle('login', e => new Promise(resolve => {
@@ -100,8 +100,9 @@ ipcMain.handle('login', e => new Promise(resolve => {
   // a fresh, in-memory session for every sign-in: Google / Discord don't remember the last account,
   // so the user always picks which account to use. Only the Craft Hub cookie is copied into the app.
   const partition = 'login-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  const target = e.sender.session, parentWin = BrowserWindow.fromWebContents(e.sender) || win;
   const loginSes = session.fromPartition(partition);
-  const w = new BrowserWindow({ parent: win, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true, partition } });
+  const w = new BrowserWindow({ parent: parentWin, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true, partition } });
   // Google refuses sign-in inside apps that announce themselves — use a plain Chrome user agent here
   w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/\s(Electron|crafthub-app|Craft Hub)\/\S+/gi, ''));
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
@@ -111,11 +112,11 @@ ipcMain.handle('login', e => new Promise(resolve => {
   const syncCookies = async () => {
     const cookies = await loginSes.cookies.get({ url: SITE }).catch(() => []);
     for (const c of cookies) {
-      await session.defaultSession.cookies.set({ url: SITE, name: c.name, value: c.value, path: c.path || '/', secure: c.secure, httpOnly: c.httpOnly, sameSite: c.sameSite && c.sameSite !== 'unspecified' ? c.sameSite : 'lax', ...(c.expirationDate ? { expirationDate: c.expirationDate } : {}) }).catch(() => { });
+      await target.cookies.set({ url: SITE, name: c.name, value: c.value, path: c.path || '/', secure: c.secure, httpOnly: c.httpOnly, sameSite: c.sameSite && c.sameSite !== 'unspecified' ? c.sameSite : 'lax', ...(c.expirationDate ? { expirationDate: c.expirationDate } : {}) }).catch(() => { });
     }
     return cookies.length;
   };
-  const timer = setInterval(async () => { if (!(await syncCookies())) return; const r = await siteRequest('/api/me'); if (r.data && r.data.user) done(true); }, 1500);
+  const timer = setInterval(async () => { if (!(await syncCookies())) return; const r = await siteRequest('/api/me', {}, target); if (r.data && r.data.user) done(true); }, 1500);
   w.on('closed', () => done(false));
   // servers that don't have /login yet: fall back to the old site's login window
   w.webContents.on('did-finish-load', async () => {
@@ -129,9 +130,9 @@ ipcMain.handle('login', e => new Promise(resolve => {
 }));
 ipcMain.handle('logout', async e => {
   if (!trusted(e)) return false;
-  await siteRequest('/auth/logout', { method: 'POST', body: {} });
+  await siteRequest('/auth/logout', { method: 'POST', body: {} }, e.sender.session);
   // everything: Craft Hub, and Google / Discord cookies older versions may have kept
-  await session.defaultSession.clearStorageData({ storages: ['cookies'] });
+  await e.sender.session.clearStorageData({ storages: ['cookies'] });
   return true;
 });
 ipcMain.handle('open-external', (e, url) => { if (trusted(e) && /^https?:\/\/[^\s]+$/i.test(String(url))) shell.openExternal(String(url)); });
@@ -168,14 +169,14 @@ function multipart(fields, file) {
 }
 ipcMain.handle('upload-file', async (e, { apiPath, field = 'file', fields = {}, filters, title } = {}) => {
   if (!trusted(e) || !UPLOAD_PATHS.test(String(apiPath))) return { status: 403, data: { error: 'forbidden' } };
-  const pick = await dialog.showOpenDialog(win, { title: title || 'Craft Hub', properties: ['openFile'], filters: Array.isArray(filters) ? filters : undefined });
+  const pick = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender) || win, { title: title || 'Craft Hub', properties: ['openFile'], filters: Array.isArray(filters) ? filters : undefined });
   if (pick.canceled || !pick.filePaths[0]) return { canceled: true };
   const fp = pick.filePaths[0];
   const size = fs.statSync(fp).size;
   if (size > 500 * 1048576) return { status: 413, data: { error: 'הקובץ גדול מדי' } };
   const mp = multipart(Object.fromEntries(Object.entries(fields).map(([k, v]) => [String(k), String(v)])), { field: String(field), name: path.basename(fp), data: fs.readFileSync(fp) });
   return new Promise(resolve => {
-    const req = net.request({ method: 'POST', url: SITE + apiPath, useSessionCookies: true });
+    const req = net.request({ method: 'POST', url: SITE + apiPath, session: e.sender.session, useSessionCookies: true });
     req.setHeader('X-Requested-With', 'fetch');
     req.setHeader('Content-Type', mp.type);
     req.on('response', res => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => { let data = null; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { } resolve({ status: res.statusCode, data, fileName: path.basename(fp) }); }); });
@@ -183,6 +184,45 @@ ipcMain.handle('upload-file', async (e, { apiPath, field = 'file', fields = {}, 
     req.write(mp.body);
     req.end();
   });
+});
+
+function setupSession(ses) {
+  // YouTube's embedded player refuses pages without a referrer (ours are local files), so present the site as the referrer
+  ses.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (d, cb) => { d.requestHeaders.Referer = SITE_ORIGIN + '/'; cb({ requestHeaders: d.requestHeaders }); });
+  // calls: microphone / screen only for the app's own pages
+  const ALLOWED_PERMS = ['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'notifications'];
+  ses.setPermissionRequestHandler((wc, perm, cb) => cb(ALLOWED_PERMS.includes(perm) && isAppPage(wc.getURL())));
+  // screen sharing: the app first picks a screen/window (screen-pick), then asks for it
+  ses.setDisplayMediaRequestHandler(async (request, cb) => {
+    const id = pickedScreen; pickedScreen = null;
+    if (!id) return cb({});
+    try { const src = (await desktopCapturer.getSources({ types: ['screen', 'window'] })).find(x => x.id === id); cb(src ? { video: src } : {}); } catch { cb({}); }
+  });
+}
+
+// ---------- test windows (staff only, from the admin panel): the app again, signed in as another user ----------
+const testWindows = new Map(); // slot -> BrowserWindow
+ipcMain.handle('open-test-window', async (e, slot) => {
+  if (!trusted(e)) return { error: 'forbidden' };
+  const me = await siteRequest('/api/me', {}, e.sender.session);
+  if (!(me.data && me.data.user && (me.data.perms || []).length)) return { error: 'רק לצוות' };
+  const n = Math.max(2, Math.min(4, Math.round(Number(slot)) || 2));
+  const old = testWindows.get(n);
+  if (old && !old.isDestroyed()) { if (old.isMinimized()) old.restore(); old.focus(); return { ok: true, slot: n }; }
+  const partition = 'persist:tester-' + n, ses = session.fromPartition(partition);
+  if (!ses.__setup) { setupSession(ses); ses.__setup = true; }
+  const w = new BrowserWindow({
+    width: 1200, height: 800, minWidth: 960, minHeight: 620, backgroundColor: '#09090d', title: 'Craft Hub — חלון בדיקה ' + n,
+    icon: path.join(__dirname, 'build', 'icon.png'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#09090d', symbolColor: '#5aa9ff', height: 38 },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, partition }
+  });
+  w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  w.webContents.on('will-navigate', (ev, url) => { if (!isAppPage(url)) { ev.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
+  w.webContents.on('before-input-event', (ev, input) => { if (input.type === 'keyDown' && input.key === 'F5') w.webContents.reload(); if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'i') w.webContents.toggleDevTools(); });
+  w.on('closed', () => testWindows.delete(n));
+  testWindows.set(n, w);
+  w.loadFile(path.join(APP_DIR, 'index.html'), { query: { tester: String(n) } });
+  return { ok: true, slot: n };
 });
 
 // ---------- screen sharing in calls ----------
@@ -197,12 +237,12 @@ ipcMain.handle('screen-pick', (e, id) => { if (!trusted(e)) return false; picked
 // ---------- downloads ----------
 // goes through Electron's net with the signed-in session, so the site knows who is downloading
 // (staff can still download while the site is in maintenance, and private files work)
-function download(url, dest, onProgress) {
+function download(url, dest, onProgress, ses) {
   return new Promise((resolve, reject) => {
     let done = false, idle;
     const fail = err => { if (done) return; done = true; clearTimeout(idle); try { req.abort(); } catch { } reject(err); };
     const touch = () => { clearTimeout(idle); idle = setTimeout(() => fail(new Error('timeout')), 30000); };
-    const req = net.request({ url, useSessionCookies: true, redirect: 'manual' });
+    const req = net.request({ url, session: ses || session.defaultSession, useSessionCookies: true, redirect: 'manual' });
     req.setHeader('User-Agent', `CraftHubApp/${app.getVersion()}`);
     req.on('redirect', (status, method, next) => { if (!isSite(next)) return fail(new Error('redirect_outside')); req.followRedirect(); });
     req.on('response', res => {
@@ -234,13 +274,13 @@ ipcMain.handle('install', async (e, { slug, versionId, type, name }) => {
   const s = readSettings();
   let dir = targetDir(type, s);
   if (type === 'plugin' && !dir) {
-    const r = await dialog.showOpenDialog(win, { title: 'בחר את תיקיית plugins של השרת', properties: ['openDirectory'] });
+    const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender) || win, { title: 'בחר את תיקיית plugins של השרת', properties: ['openDirectory'] });
     if (r.canceled || !r.filePaths[0]) return { ok: false, error: 'canceled' };
     dir = r.filePaths[0]; writeSettings({ ...s, pluginsDir: dir });
   }
   if (type === 'datapack') {
     const saves = path.join(s.mcDir, 'saves');
-    const r = await dialog.showOpenDialog(win, { title: 'בחר עולם (World) להתקנת הדאטהפאק', defaultPath: fs.existsSync(saves) ? saves : s.mcDir, properties: ['openDirectory'] });
+    const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender) || win, { title: 'בחר עולם (World) להתקנת הדאטהפאק', defaultPath: fs.existsSync(saves) ? saves : s.mcDir, properties: ['openDirectory'] });
     if (r.canceled || !r.filePaths[0]) return { ok: false, error: 'canceled' };
     dir = path.join(r.filePaths[0], 'datapacks');
   }
@@ -251,7 +291,7 @@ ipcMain.handle('install', async (e, { slug, versionId, type, name }) => {
   const url = `${SITE}/dl/${encodeURIComponent(slug)}${versionId ? '/' + encodeURIComponent(versionId) : ''}`;
   const send = p => e.sender.send('install-progress', { slug, progress: p });
   const probe = path.join(dir, `.crafthub-${slug}`);
-  const { tmp, fileName } = await download(url, probe, send);
+  const { tmp, fileName } = await download(url, probe, send, e.sender.session);
   const finalName = safeName(fileName || `${slug}.jar`);
   let finalPath = path.join(dir, finalName);
   if (type === 'world' && /\.zip$/i.test(finalName)) {
@@ -313,7 +353,7 @@ ipcMain.handle('settings', e => {
 ipcMain.handle('choose-dir', async (e, which) => {
   if (!trusted(e)) throw new Error('forbidden');
   const s = readSettings();
-  const r = await dialog.showOpenDialog(win, { title: which === 'plugins' ? 'תיקיית plugins של השרת' : 'תיקיית מיינקראפט (.minecraft)', defaultPath: which === 'plugins' ? s.pluginsDir || undefined : s.mcDir, properties: ['openDirectory'] });
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender) || win, { title: which === 'plugins' ? 'תיקיית plugins של השרת' : 'תיקיית מיינקראפט (.minecraft)', defaultPath: which === 'plugins' ? s.pluginsDir || undefined : s.mcDir, properties: ['openDirectory'] });
   if (r.canceled || !r.filePaths[0]) return readSettings();
   writeSettings({ ...s, [which === 'plugins' ? 'pluginsDir' : 'mcDir']: r.filePaths[0] });
   return readSettings();
@@ -446,17 +486,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(() => {
-    // YouTube's embedded player refuses pages without a referrer (ours are local files), so present the site as the referrer
-    session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (d, cb) => { d.requestHeaders.Referer = SITE_ORIGIN + '/'; cb({ requestHeaders: d.requestHeaders }); });
-    // calls: microphone / camera / screen only for the app's own pages
-    const ALLOWED_PERMS = ['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'notifications'];
-    session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(ALLOWED_PERMS.includes(perm) && isAppPage(wc.getURL())));
-    // screen sharing: the app first picks a screen/window (screen-pick), then asks for it
-    session.defaultSession.setDisplayMediaRequestHandler(async (request, cb) => {
-      const id = pickedScreen; pickedScreen = null;
-      if (!id) return cb({});
-      try { const src = (await desktopCapturer.getSources({ types: ['screen', 'window'] })).find(s => s.id === id); cb(src ? { video: src } : {}); } catch { cb({}); }
-    });
+    setupSession(session.defaultSession);
     createWindow(); setupUpdates();
   });
   app.on('window-all-closed', () => app.quit());

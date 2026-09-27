@@ -2369,6 +2369,9 @@ setInterval(pollDms, 20000);
 
 /* ---------- what's new after an update ---------- */
 const CHANGELOG = [
+  { v: '1.12.0', items: ['📞 שיחות קוליות בין חברים', '🎙️ הגדרות מיקרופון ורמקולים', '🖥️ שיתוף מסך בשיחות (באישור הצוות)'] },
+  { v: '1.12.1', items: ['🏷️ תיוג חברים עם @ בצ׳אט, בטיקטים ובביקורות', '🔇 השתקה (Ctrl+M) ודיפן (Ctrl+D) בשיחות', '🔒 פרטיות: מי יכול לשלוח לך הודעות ולהתקשר אליך'] },
+  { v: '1.13.0', items: ['⚡ שיפורים ותיקונים'] },
   { v: '1.11.0', items: ['💬 הודעות פרטיות בין חברים', '🗳️ תזכורת כשאפשר להצביע שוב לשרת', '🎬 סרטון יוטיוב בדף פרויקט', '✨ "אולי תאהב גם" — פרויקטים דומים', '📈 גרף שחקנים לכל שרת', '📅 אירועים לשרתים, עם תזכורות', '🏆 טבלת מובילים', '✔️ וי כחול לקרייטורים מאומתים'] }
 ];
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
@@ -3183,6 +3186,26 @@ renderNav = function () {
   nav.querySelectorAll('a[data-go]').forEach(a => { if (!placed.has(a)) frag.firstChild.querySelector('.nav-items').appendChild(a); });
   nav.innerHTML = '';
   nav.appendChild(frag);
+};
+
+/* ================= test windows (staff): a second copy of the app, signed in as another user ================= */
+Object.assign(I18N.he, { tw_btn: 'חלון בדיקה', tw_title: 'חלונות בדיקה', tw_sub: 'פותח עוד עותק של האפליקציה עם חיבור נפרד — אפשר להתחבר בו למשתמש אחר ולבדוק דברים בין שני משתמשים (הודעות, שיחות, חברים). כל חלון זוכר את החשבון שלו.', tw_open: 'פתח חלון {x}', tw_badge: '🧪 חלון בדיקה {x}' });
+Object.assign(I18N.en, { tw_btn: 'Test window', tw_title: 'Test windows', tw_sub: 'Opens another copy of the app with its own session — sign in as a different user and test things between two users (messages, calls, friends). Each window remembers its account.', tw_open: 'Open window {x}', tw_badge: '🧪 Test window {x}' });
+const TESTER = (window.craftHubApp && window.craftHubApp.tester) || '';
+if (TESTER) {
+  document.title = 'Craft Hub — ' + t('tw_badge', TESTER);
+  document.body.classList.add('tester');
+  const b = document.createElement('div'); b.id = 'testerBadge'; b.textContent = t('tw_badge', TESTER); document.body.appendChild(b);
+  try { localStorage.setItem('ch_tour_v1', '1'); localStorage.setItem('ch_seen_ver', '99.0.0'); } catch { } // no tour / what's new in test windows
+}
+// the admin panel: a card on "my desk" + a button in the header
+const _aMeTW = aMe;
+aMe = async function (body, stale) {
+  await _aMeTW(body, stale);
+  if (stale() || TESTER || !B.openTestWindow) return;
+  body.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px"><div class="card-h">${ic('screen')}<h3>${t('tw_title')}</h3></div><div class="card-b"><p class="faint" style="margin:0 0 14px">${t('tw_sub')}</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap">${[2, 3, 4].map(n => `<button class="btn" data-tw="${n}">${ic('plus', 'sm')} ${t('tw_open', n)}</button>`).join('')}</div></div></div>`);
+  body.querySelectorAll('[data-tw]').forEach(b => b.onclick = async () => { const r = await B.openTestWindow(+b.dataset.tw); if (r && r.error) toast(r.error, 'err'); });
 };
 
 /* ================= start ================= */

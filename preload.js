@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('craftHubApp', {
   notify: (n) => ipcRenderer.send('notify', n),
   screenSources: () => ipcRenderer.invoke('screen-sources'),
   screenPick: (id) => ipcRenderer.invoke('screen-pick', id),
+  openTestWindow: (slot) => ipcRenderer.invoke('open-test-window', slot),
+  tester: new URLSearchParams(location.search).get('tester') || '',
   updateState: () => ipcRenderer.invoke('update-state'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateState: (fn) => { updListeners.add(fn); return () => updListeners.delete(fn); },
