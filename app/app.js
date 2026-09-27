@@ -649,6 +649,150 @@ openLink = function (l) {
   else if (l) B.openExternal(B.site + l);
 };
 
+
+/* ================= play directly (Microsoft account) + update popup ================= */
+Object.assign(I18N.he, {
+  mc_account: 'חשבון מיינקראפט', mc_signin: 'התחברות עם Microsoft', mc_signout: 'התנתקות', mc_code: 'הקוד שלך (כבר הועתק):', mc_code_hint: 'נפתח דפדפן — הדבק את הקוד ואשר. החלון הזה יתעדכן לבד.',
+  mc_not_configured: 'הפעלה ישירה תעבוד אחרי שהאפליקציה תאושר על ידי Mojang. עד אז "שחק" פותח את הלאנצ׳ר הרשמי.', mc_fallback: 'פתח בלאנצ׳ר הרשמי',
+  new_version: 'הוספת גרסה', mc_version_sel: 'גרסת מיינקראפט', loader_sel: 'טוען', install_version: 'התקן גרסה', version_ready: 'הגרסה {x} מוכנה ✓', ram: 'זיכרון למשחק', ram_gb: '{x} GB',
+  st_auth: 'מתחבר לחשבון…', st_loader: 'מתקין את טוען המודים…', st_java: 'מוריד Java {x}…', st_files: 'מוריד קבצי משחק {x}', st_starting: 'מפעיל את מיינקראפט…', st_running: 'מיינקראפט רץ 🎮', st_exited: 'המשחק נסגר',
+  st_crash: 'המשחק נסגר מהר מדי — כנראה בעיה במודים או בגרסה', open_log: 'פתח לוג', err_app_not_approved: 'האפליקציה עוד לא אושרה על ידי Mojang להתחברות.', err_no_minecraft: 'לחשבון הזה אין מיינקראפט Java.',
+  err_no_xbox_account: 'לחשבון אין פרופיל Xbox — היכנס פעם אחת ל-xbox.com.', err_child_account: 'חשבון ילד — צריך אישור הורה ב-Xbox.', err_already_running: 'המשחק כבר רץ',
+  upd_title: 'גרסה חדשה זמינה!', upd_text: 'גרסה {x} של Craft Hub מוכנה עם שיפורים ותיקונים.', upd_later: 'אחר כך', loader_names: { vanilla: 'Vanilla', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge', neoforge: 'NeoForge' }
+});
+Object.assign(I18N.en, {
+  mc_account: 'Minecraft account', mc_signin: 'Sign in with Microsoft', mc_signout: 'Sign out', mc_code: 'Your code (already copied):', mc_code_hint: 'A browser opened — paste the code and approve. This updates by itself.',
+  mc_not_configured: 'Direct launch works once Mojang approves the app. Until then "Play" opens the official launcher.', mc_fallback: 'Open official launcher',
+  new_version: 'Add a version', mc_version_sel: 'Minecraft version', loader_sel: 'Loader', install_version: 'Install version', version_ready: '{x} is ready ✓', ram: 'Game memory', ram_gb: '{x} GB',
+  st_auth: 'Signing in…', st_loader: 'Installing the mod loader…', st_java: 'Downloading Java {x}…', st_files: 'Downloading game files {x}', st_starting: 'Starting Minecraft…', st_running: 'Minecraft is running 🎮', st_exited: 'The game closed',
+  st_crash: 'The game closed right away — probably a mod or version problem', open_log: 'Open log', err_app_not_approved: 'Mojang has not approved the app for sign-in yet.', err_no_minecraft: 'This account does not own Minecraft Java.',
+  err_no_xbox_account: 'This account has no Xbox profile — sign in once at xbox.com.', err_child_account: 'Child account — a parent must allow it on Xbox.', err_already_running: 'The game is already running',
+  upd_title: 'A new version is available!', upd_text: 'Craft Hub {x} is ready with improvements and fixes.', upd_later: 'Later', loader_names: { vanilla: 'Vanilla', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge', neoforge: 'NeoForge' }
+});
+const PLAY = { status: null };
+function playStatusHtml(st) {
+  if (!st) return '';
+  const pct = st.stage === 'files' && st.total ? Math.round(st.done / st.total * 100) : null;
+  const txt = st.stage === 'auth' ? t('st_auth') : st.stage === 'loader' ? t('st_loader') : st.stage === 'java' ? t('st_java', st.major || '') + (st.bytes ? ` ${fmtSize(st.bytes)}` : '')
+    : st.stage === 'files' ? t('st_files', st.total ? `${st.done}/${st.total}` : '') : st.stage === 'starting' ? t('st_starting') : st.stage === 'running' ? t('st_running')
+    : st.stage === 'exited' ? (st.quick && st.code ? t('st_crash') : t('st_exited')) : st.stage === 'error' ? (I18N[LANG]['err_' + st.error] || st.error) : '';
+  if (!txt) return '';
+  const bad = st.stage === 'error' || (st.stage === 'exited' && st.quick && st.code);
+  return `<div class="play-status ${bad ? 'bad' : ''}"><span>${esc(txt)}</span>${pct != null ? `<div class="pbar"><i style="width:${pct}%"></i></div>` : st.stage === 'running' || bad ? '' : '<div class="pbar ind"><i></i></div>'}${bad ? `<button class="btn sm" id="logBtn">${t('open_log')}</button>` : ''}</div>`;
+}
+function drawPlayStatus() { const el = $('#playStatus'); if (el) { el.innerHTML = playStatusHtml(PLAY.status); const lb = $('#logBtn'); if (lb) lb.onclick = () => B.openGameLog(); } }
+B.onPlay(st => {
+  if (st.stage === 'login-done' || st.stage === 'login-error') { if (st.stage === 'login-error') toast(I18N[LANG]['err_' + st.error] || st.error, 'err'); if (S.route === 'play') go('play', {}, true); return; }
+  PLAY.status = st;
+  if (st.stage === 'running' || st.stage === 'exited' || st.stage === 'error') PLAY.busy = false;
+  drawPlayStatus();
+  const pb = $('#playBtn'); if (pb) pb.disabled = !!PLAY.busy || st.stage === 'running';
+});
+
+vPlay = async function (p, stale) {
+  const [ver, mods, s, acc] = await Promise.all([B.mcVersions(), B.modsList(), B.settings(), B.mcAccount()]);
+  if (stale()) return;
+  const vs = ver.versions || [];
+  let chosen = localStorage.getItem('play_version') || (vs[0] && vs[0].id) || '';
+  if (!vs.some(v => v.id === chosen) && vs[0]) chosen = vs[0].id;
+  const cur = vs.find(v => v.id === chosen);
+  const on = mods.filter(m => m.enabled).length;
+  const direct = acc.configured && acc.account;
+  const groups = ['Fabric', 'Quilt', 'Forge', 'NeoForge', 'OptiFine', 'Vanilla'].map(l => [l, vs.filter(v => v.loader === l)]).filter(g => g[1].length);
+  const ramGb = Math.round((acc.ramMB || 4096) / 1024);
+  put(`
+    <div class="play-hero">
+      <div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:18px">
+        <div style="flex:1;min-width:300px">
+          <h1>${ic('play', 'fill lg')} ${t('play_title')}</h1>
+          ${vs.length ? `<div class="play-row"><select id="verSel">${groups.map(([l, list]) => `<optgroup label="${l}">${list.map(v => `<option value="${esc(v.id)}" ${v.id === chosen ? 'selected' : ''}>${esc(v.id)}</option>`).join('')}</optgroup>`).join('')}</select><button class="btn primary play-btn" id="playBtn" ${PLAY.busy || (PLAY.status && PLAY.status.stage === 'running') ? 'disabled' : ''}>${ic('play', 'fill')} ${t('play_btn')}</button></div>
+          <div class="play-meta">${cur ? `<span class="ld ${cur.loader}">${cur.loader}</span> <span class="mono">${esc(cur.base)}</span>` : ''}${cur && !['Vanilla', 'OptiFine'].includes(cur.loader) ? ` · ${t('mods_on', on)}` : on ? ` · <span style="color:var(--warn)">${t('vanilla_mods')}</span>` : ''}</div>`
+          : `<p class="faint">${s.mcExists ? t('no_versions') : t('mc_missing')}</p>`}
+          <div id="playStatus">${playStatusHtml(PLAY.status)}</div>
+        </div>
+        <div class="mc-acct">
+          <div class="faint" style="font-size:12px;font-weight:700;margin-bottom:8px">${t('mc_account')}</div>
+          ${acc.account ? `<div class="row"><img src="https://mc-heads.net/avatar/${esc(acc.account.uuid)}/40" alt="" style="width:40px;height:40px;border-radius:8px;image-rendering:pixelated"><div style="flex:1"><b>${esc(acc.account.name)}</b><div class="faint" style="font-size:12px">Microsoft</div></div><button class="icon-btn" id="mcOut" title="${t('mc_signout')}">${ic('logout', 'sm')}</button></div>`
+            : acc.configured ? `<div id="mcLoginBox"><button class="btn primary" id="mcIn">${ic('user', 'sm')} ${t('mc_signin')}</button></div>`
+            : `<p class="faint" style="margin:0;font-size:12.5px;line-height:1.6">${t('mc_not_configured')}</p>`}
+          <div class="faint" style="font-size:12px;font-weight:700;margin:14px 0 6px">${t('ram')}: <span id="ramV">${t('ram_gb', ramGb)}</span></div>
+          <input type="range" id="ram" min="2" max="16" step="1" value="${ramGb}" style="width:100%;accent-color:var(--accent)">
+          ${direct ? `<button class="btn sm ghost" id="fallback" style="margin-top:8px">${t('mc_fallback')}</button>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="play-layout">
+      <div class="card"><div class="card-h">${ic('grid')}<h3>${t('my_mods')}</h3><span class="faint">${on}/${mods.length}</span><span class="spacer"></span><a class="link" data-go="library">${t('library')} ${ic(flip(), 'sm')}</a></div><div class="card-b">
+        ${mods.length ? mods.slice(0, 12).map(m => `<div class="lrow ${m.enabled ? '' : 'off'}"><label class="tgl"><input type="checkbox" data-mod="${esc(m.file)}" ${m.enabled ? 'checked' : ''}><span></span></label><b class="mono ltr" style="flex:1">${esc(m.name)}</b></div>`).join('') : emptyBox('grid', t('mods_empty'))}
+      </div></div>
+      <div class="card"><div class="card-h">${ic('plus')}<h3>${t('new_version')}</h3></div><div class="card-b stack" style="gap:10px">
+        <label class="faint" style="font-size:12.5px">${t('loader_sel')}</label>
+        <div class="tabs" style="margin:0">${['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'].map((l, i) => `<button data-ld="${l}" class="${i === 1 ? 'on' : ''}">${I18N[LANG].loader_names[l]}</button>`).join('')}</div>
+        <label class="faint" style="font-size:12.5px">${t('mc_version_sel')}</label>
+        <select id="nvMc"><option>…</option></select>
+        <button class="btn primary" id="nvGo">${ic('download', 'sm')} ${t('install_version')}</button>
+      </div></div>
+    </div>`);
+  const sel = $('#verSel');
+  if (sel) sel.onchange = () => { localStorage.setItem('play_version', sel.value); go('play', {}, true); };
+  const pb = $('#playBtn');
+  if (pb) pb.onclick = async () => {
+    if (!direct) { pb.disabled = true; const r = await B.launch(sel.value); toast(r.ok ? t('play_started', sel.value) : t('play_failed'), r.ok ? '' : 'err'); setTimeout(() => { pb.disabled = false; }, 4000); return; }
+    PLAY.busy = true; pb.disabled = true; PLAY.status = { stage: 'auth' }; drawPlayStatus();
+    const r = await B.mcPlay({ versionId: sel.value });
+    if (r.error) { PLAY.busy = false; pb.disabled = false; if (r.error === 'no_account') go('play', {}, true); else if (!PLAY.status || PLAY.status.stage !== 'error') { PLAY.status = { stage: 'error', error: r.error }; drawPlayStatus(); } }
+  };
+  const fb = $('#fallback'); if (fb) fb.onclick = async () => { const r = await B.launch(sel.value); toast(r.ok ? t('play_started', sel.value) : t('play_failed'), r.ok ? '' : 'err'); };
+  const mi = $('#mcIn');
+  if (mi) mi.onclick = async () => {
+    mi.disabled = true;
+    try {
+      const r = await B.mcLoginStart();
+      if (r.error) { toast(t('mc_not_configured'), 'err'); mi.disabled = false; return; }
+      $('#mcLoginBox').innerHTML = `<div class="faint" style="font-size:12.5px">${t('mc_code')}</div><div class="mc-code mono">${esc(r.userCode)}</div><div class="faint" style="font-size:12px;line-height:1.5">${t('mc_code_hint')}</div><button class="btn sm" data-ext="${esc(r.url)}" style="margin-top:8px">${ic('ext', 'sm')} microsoft.com/link</button>`;
+      bindCommon($('#mcLoginBox'));
+    } catch (err) { toast(err.message, 'err'); mi.disabled = false; }
+  };
+  const mo = $('#mcOut'); if (mo) mo.onclick = async () => { await B.mcLogout(); go('play', {}, true); };
+  const ram = $('#ram');
+  ram.oninput = () => { $('#ramV').textContent = t('ram_gb', ram.value); };
+  ram.onchange = () => B.setSetting('ramMB', Number(ram.value) * 1024);
+  view.querySelectorAll('[data-mod]').forEach(c => c.onchange = async () => { await B.modsToggle(c.dataset.mod); go('play', {}, true); });
+  // add a version: Minecraft release + loader
+  let ld = 'fabric';
+  const loadMc = async () => {
+    const box = $('#nvMc'); box.innerHTML = '<option>…</option>';
+    try { const list = ld === 'fabric' || ld === 'quilt' ? await B.loaderGameVersions(ld) : await B.mcReleases(); box.innerHTML = list.map(v => `<option>${esc(v)}</option>`).join(''); }
+    catch { box.innerHTML = `<option value="">${t('error')}</option>`; }
+  };
+  view.querySelectorAll('[data-ld]').forEach(b => b.onclick = () => { ld = b.dataset.ld; view.querySelectorAll('[data-ld]').forEach(x => x.classList.toggle('on', x === b)); loadMc(); });
+  loadMc();
+  $('#nvGo').onclick = async () => {
+    const mc = $('#nvMc').value; if (!mc) return;
+    const btn = $('#nvGo'); btn.disabled = true; btn.innerHTML = `${ic('download', 'sm')} …`;
+    try { const r = await B.mcInstall({ loader: ld, mc }); localStorage.setItem('play_version', r.id); toast(t('version_ready', r.id)); PLAY.status = null; go('play', {}, true); }
+    catch (err) { toast(t('error') + ': ' + String(err.message || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err'); btn.disabled = false; btn.innerHTML = `${ic('download', 'sm')} ${t('install_version')}`; }
+  };
+};
+
+// a new app version: popup once per launch, plus the bar at the bottom
+let updPopupShown = false;
+const _drawUpdate = drawUpdate;
+drawUpdate = function (st) {
+  _drawUpdate(st);
+  if (!st || !st.available || st.blocked || updPopupShown) return;
+  updPopupShown = true;
+  const m = document.createElement('div');
+  m.className = 'modal-back';
+  m.innerHTML = `<div class="card upd-modal"><div class="upd-ic">${ic('download', 'xl')}</div><h2>${t('upd_title')}</h2><p>${esc(t('upd_text', st.version))}</p><p class="faint" style="font-size:13px">${esc(t('upd_days', st.daysLeft))}</p>
+    <div class="row" style="justify-content:center;margin-top:18px"><button class="btn primary lg" id="updPopGo">${ic('download', 'sm')} ${t('upd_now')}</button><button class="btn lg ghost" id="updPopLater">${t('upd_later')}</button></div></div>`;
+  document.body.appendChild(m);
+  $('#updPopLater').onclick = () => m.remove();
+  $('#updPopGo').onclick = () => { $('#updPopGo').disabled = true; B.installUpdate(); m.remove(); };
+};
+B.updateState().then(drawUpdate).catch(() => { });
+B.onUpdateState(st => drawUpdate(st));
+
 /* ---------- start ---------- */
 $('#backBtn').innerHTML = ic(flip());
 $('#backBtn').onclick = () => { const h = S.history.pop(); if (h) go(h[0], h[1], true); $('#backBtn').disabled = !S.history.length; };

@@ -34,5 +34,14 @@ contextBridge.exposeInMainWorld('craftHubApp', {
   updateState: () => ipcRenderer.invoke('update-state'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateState: (fn) => { updListeners.add(fn); return () => updListeners.delete(fn); },
+  mcAccount: () => ipcRenderer.invoke('mc-account'),
+  mcLoginStart: () => ipcRenderer.invoke('mc-login-start'),
+  mcLogout: () => ipcRenderer.invoke('mc-logout'),
+  mcReleases: () => ipcRenderer.invoke('mc-releases'),
+  mcInstall: (opts) => ipcRenderer.invoke('mc-install', opts),
+  mcPlay: (opts) => ipcRenderer.invoke('mc-play', opts),
+  setSetting: (key, value) => ipcRenderer.invoke('set-setting', { key, value }),
+  openGameLog: () => ipcRenderer.invoke('open-game-log'),
+  onPlay: (fn) => ipcRenderer.on('mc-progress', (e, st) => fn(st)),
   onProgress: (fn) => { listeners.add(fn); return () => listeners.delete(fn); }
 });

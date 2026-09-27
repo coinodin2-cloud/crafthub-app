@@ -376,6 +376,101 @@ ipcMain.handle('launch', async (e, versionId) => {
   else shell.openExternal('minecraft://');
   return { ok: true, profile: wrote > 0 };
 });
+
+// ---------- play Minecraft directly (no official launcher) ----------
+const { Launcher } = require('./lib/launcher');
+const msauth = require('./lib/msauth');
+const { safeStorage, clipboard } = require('electron');
+// Azure app (public client) approved by Mojang for the Minecraft API — can also be set in Settings
+const DEFAULT_MS_CLIENT_ID = '';
+const msClientId = () => readSettings().msClientId || DEFAULT_MS_CLIENT_ID;
+const ACCOUNT_FILE = path.join(app.getPath('userData'), 'account.bin');
+const RUNTIME_DIR = path.join(app.getPath('userData'), 'runtime');
+const mcLauncher = () => new Launcher({ root: readSettings().mcDir, runtimeDir: RUNTIME_DIR, log: m => console.log('[launcher]', m) });
+function saveAccount(a) {
+  const raw = JSON.stringify(a);
+  fs.writeFileSync(ACCOUNT_FILE, safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(raw) : Buffer.from(raw));
+}
+function loadAccount() {
+  try { const buf = fs.readFileSync(ACCOUNT_FILE); return JSON.parse(safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : buf.toString()); } catch { return null; }
+}
+const publicAccount = a => a ? { name: a.name, uuid: a.uuid, skin: a.skin || '' } : null;
+const sendPlay = st => { if (win && !win.isDestroyed()) win.webContents.send('mc-progress', st); };
+const LOGIN_ERRORS = { app_not_approved: 'app_not_approved', no_minecraft: 'no_minecraft', no_xbox_account: 'no_xbox_account', child_account: 'child_account' };
+
+ipcMain.handle('mc-account', e => { if (!trusted(e)) throw new Error('forbidden'); return { account: publicAccount(loadAccount()), configured: !!msClientId(), ramMB: readSettings().ramMB || 4096 }; });
+let loginJob = null;
+ipcMain.handle('mc-login-start', async e => {
+  if (!trusted(e)) throw new Error('forbidden');
+  const cid = msClientId();
+  if (!cid) return { error: 'not_configured' };
+  if (loginJob) loginJob.cancelled = true;
+  const job = { cancelled: false }; loginJob = job;
+  const dev = await msauth.startDeviceLogin(cid);
+  clipboard.writeText(dev.userCode);
+  shell.openExternal(dev.verificationUri);
+  (async () => {
+    try {
+      const ms = await msauth.pollDeviceLogin(cid, dev, () => job.cancelled);
+      const mc = await msauth.minecraftLogin(ms.access_token);
+      saveAccount({ ...mc, msRefresh: ms.refresh_token });
+      sendPlay({ stage: 'login-done', account: publicAccount(mc) });
+    } catch (err) { if (!job.cancelled) sendPlay({ stage: 'login-error', error: LOGIN_ERRORS[err.message] || err.message }); }
+  })();
+  return { userCode: dev.userCode, url: dev.verificationUri };
+});
+ipcMain.handle('mc-logout', e => { if (!trusted(e)) throw new Error('forbidden'); fs.rmSync(ACCOUNT_FILE, { force: true }); return true; });
+ipcMain.handle('mc-releases', async e => { if (!trusted(e)) throw new Error('forbidden'); return (await mcLauncher().releases()).slice(0, 80); });
+ipcMain.handle('mc-install', async (e, { loader, mc }) => {
+  if (!trusted(e)) throw new Error('forbidden');
+  if (!['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'].includes(loader) || !/^[\w.-]{1,32}$/.test(String(mc))) throw new Error('bad_request');
+  const id = await mcLauncher().installVersion(loader, mc, st => sendPlay(st));
+  return { id };
+});
+ipcMain.handle('set-setting', (e, { key, value }) => {
+  if (!trusted(e)) throw new Error('forbidden');
+  const s = readSettings();
+  if (key === 'ramMB') s.ramMB = Math.max(1024, Math.min(32768, Math.round(Number(value) || 4096)));
+  else if (key === 'msClientId') s.msClientId = /^[0-9a-f-]{36}$/i.test(String(value).trim()) ? String(value).trim() : '';
+  else throw new Error('bad_key');
+  writeSettings(s);
+  return true;
+});
+let gameRunning = null;
+ipcMain.handle('mc-play', async (e, { versionId, server }) => {
+  if (!trusted(e)) throw new Error('forbidden');
+  if (gameRunning) return { error: 'already_running' };
+  let acc = loadAccount();
+  if (!acc) return { error: 'no_account' };
+  const s = readSettings();
+  if (!/^[\w.+ -]{1,80}$/.test(String(versionId)) || !fs.existsSync(path.join(s.mcDir, 'versions', versionId, versionId + '.json'))) return { error: 'no_version' };
+  try {
+    // the Minecraft token lasts ~24h; refresh it through Microsoft when needed
+    if (!acc.expiresAt || acc.expiresAt - Date.now() < 10 * 60000) {
+      sendPlay({ stage: 'auth' });
+      const ms = await msauth.refreshMicrosoft(msClientId(), acc.msRefresh);
+      const mc = await msauth.minecraftLogin(ms.access_token);
+      acc = { ...mc, msRefresh: ms.refresh_token || acc.msRefresh };
+      saveAccount(acc);
+    }
+    const res = await mcLauncher().launch(versionId, { ...acc, clientId: msClientId() }, { ramMB: s.ramMB || 4096, appVersion: app.getVersion(), server: /^[\w.-]+(:\d+)?$/.test(String(server || '')) ? server : '' }, st => sendPlay(st));
+    gameRunning = res.child;
+    sendPlay({ stage: 'running', version: versionId });
+    const started = Date.now();
+    res.child.on('exit', code => {
+      gameRunning = null;
+      sendPlay({ stage: 'exited', code, quick: Date.now() - started < 15000, log: res.logFile });
+      if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); }
+    });
+    if (win && !win.isDestroyed()) win.minimize();
+    return { ok: true };
+  } catch (err) {
+    sendPlay({ stage: 'error', error: LOGIN_ERRORS[err.message] || err.message });
+    return { error: err.message };
+  }
+});
+ipcMain.handle('open-game-log', e => { if (trusted(e)) shell.openPath(path.join(RUNTIME_DIR, 'latest-game.log')); });
+
 // Windows notifications (clicking opens the link inside the app)
 ipcMain.on('notify', (e, n) => {
   if (!trusted(e) || !Notification.isSupported()) return;
