@@ -2197,6 +2197,107 @@ go = function (route, params, noHistory) {
 };
 go.seq = _goPL.seq;
 
+/* ================= first-time welcome + guided tour ================= */
+Object.assign(I18N.he, {
+  tr_welcome: 'ברוך הבא ל-Craft Hub! 👋', tr_welcome_sub: 'הבית של פלאגינים, מודים, טקסטורות ושיידרים מהקהילה. בוא נעשה סיבוב קצר — זה לוקח חצי דקה.',
+  tr_start: 'בוא נתחיל', tr_skip: 'דלג', tr_next: 'הבא', tr_back: 'הקודם', tr_done: 'סיום', tr_of: '{x}',
+  tr_search: ['חיפוש', 'מחפשים כל דבר — פלאגין, מוד, טקסטורה או קרייטור. פשוט מקלידים ולוחצים חפש.'],
+  tr_cats: ['קטגוריות', 'קפיצה ישירה לסוג התוכן שמעניין אותך.'],
+  tr_discover: ['גלה', 'כל התוכן באתר, עם סינון לפי סוג וקטגוריה ומיון לפי הורדות, לייקים או חדש.'],
+  tr_library: ['הספרייה שלך', 'כל מה שהתקנת במקום אחד — עדכון, הסרה, והפעלה או כיבוי של מודים.'],
+  tr_servers: ['שרתים', 'שרתי מיינקראפט מהקהילה. מצביעים כל 24 שעות ומקבלים פרסים בשרת.'],
+  tr_people: ['אנשים', 'מחפשים אנשים, עוקבים אחריהם, מוסיפים חברים ורואים את התוכן והשרתים שלהם.'],
+  tr_bell: ['התראות', 'כאן תראה תגובות, עדכונים לפרויקטים שאתה עוקב אחריהם ובקשות חברות.'],
+  tr_settings: ['הגדרות וחשבון', 'התחברות, הפרופיל שלך, שפה ותיקיית מיינקראפט.'],
+  tr_finish: 'זהו, אתה מוכן! 🎉', tr_finish_sub: 'התקנה בלחיצה אחת, עדכונים אוטומטיים, והכל במקום אחד. תהנה!', tr_login: 'התחברות', tr_replay: 'הצג שוב את המדריך', tr_card: 'מדריך למתחילים'
+});
+Object.assign(I18N.en, {
+  tr_welcome: 'Welcome to Craft Hub! 👋', tr_welcome_sub: 'The home of community plugins, mods, texture packs and shaders. Let\'s take a quick tour — it takes half a minute.',
+  tr_start: 'Let\'s go', tr_skip: 'Skip', tr_next: 'Next', tr_back: 'Back', tr_done: 'Done', tr_of: '{x}',
+  tr_search: ['Search', 'Find anything — a plugin, mod, texture pack or creator. Just type and hit search.'],
+  tr_cats: ['Categories', 'Jump straight to the kind of content you like.'],
+  tr_discover: ['Discover', 'Everything on Craft Hub, filtered by type and category, sorted by downloads, likes or newest.'],
+  tr_library: ['Your library', 'Everything you installed in one place — update, remove, and turn mods on or off.'],
+  tr_servers: ['Servers', 'Community Minecraft servers. Vote every 24 hours and get rewards in game.'],
+  tr_people: ['People', 'Find people, follow them, add friends and see their content and servers.'],
+  tr_bell: ['Notifications', 'Replies, updates to projects you follow, and friend requests show up here.'],
+  tr_settings: ['Settings & account', 'Sign in, your profile, language and the Minecraft folder.'],
+  tr_finish: 'You\'re all set! 🎉', tr_finish_sub: 'One-click installs, automatic updates, all in one place. Enjoy!', tr_login: 'Sign in', tr_replay: 'Show the tour again', tr_card: 'Beginner tour'
+});
+const TOUR_KEY = 'ch_tour_v1';
+const TOUR_STEPS = [
+  ['.sh-search', 'tr_search'], ['.sh-pills', 'tr_cats'], ['#nav [data-go="discover"]', 'tr_discover'], ['#nav [data-go="library"]', 'tr_library'],
+  ['#nav [data-go="servers"]', 'tr_servers'], ['#nav [data-go="people"]', 'tr_people'], ['#bellBtn', 'tr_bell'], ['#sideBottom [data-go="settings"]', 'tr_settings']
+];
+function startTour() {
+  if ($('#tourBack')) return;
+  if (S.route !== 'home') go('home', {}, true);
+  const back = document.createElement('div'); back.id = 'tourBack';
+  const hole = document.createElement('div'); hole.id = 'tourHole';
+  const tip = document.createElement('div'); tip.id = 'tourTip'; tip.className = 'card';
+  document.body.append(back, hole, tip);
+  let i = -1; // -1 = welcome, TOUR_STEPS.length = finish
+  const end = () => { try { localStorage.setItem(TOUR_KEY, '1'); } catch { } back.remove(); hole.remove(); tip.remove(); window.removeEventListener('resize', place); document.removeEventListener('keydown', key); };
+  const steps = () => TOUR_STEPS.filter(([sel]) => document.querySelector(sel));
+  const center = html => { hole.hidden = true; back.classList.add('dim'); tip.className = 'card tour-center'; tip.style.cssText = ''; tip.innerHTML = html; };
+  function place() {
+    const list = steps();
+    if (i < 0 || i >= list.length) return;
+    const el = document.querySelector(list[i][0]);
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest' });
+    const r = el.getBoundingClientRect(), pad = 8;
+    hole.hidden = false; back.classList.remove('dim');
+    Object.assign(hole.style, { top: r.top - pad + 'px', left: r.left - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+    tip.className = 'card tour-tip';
+    const tw = tip.offsetWidth, th = tip.offsetHeight, vw = innerWidth, vh = innerHeight;
+    // prefer below the target, else above, else beside it (the sidebar is on the side)
+    let top = r.bottom + 16, left = r.left + r.width / 2 - tw / 2;
+    if (r.width < 320 && r.height < 80 && (r.left > vw / 2 || r.right < vw / 2)) { top = r.top + r.height / 2 - th / 2; left = r.left > vw / 2 ? r.left - tw - 20 : r.right + 20; }
+    else if (top + th > vh - 12) top = r.top - th - 16;
+    tip.style.top = Math.max(12, Math.min(vh - th - 12, top)) + 'px';
+    tip.style.left = Math.max(12, Math.min(vw - tw - 12, left)) + 'px';
+  }
+  function draw() {
+    const list = steps();
+    if (i < 0) {
+      center(`<div class="tour-logo">${ic('grid', 'xl')}</div><h2>${t('tr_welcome')}</h2><p>${t('tr_welcome_sub')}</p>
+        <div class="row" style="gap:10px;justify-content:center;margin-top:20px"><button class="btn primary lg" data-t="next">${t('tr_start')} ${ic(flip(), 'sm')}</button><button class="btn lg ghost" data-t="skip">${t('tr_skip')}</button></div>`);
+    } else if (i >= list.length) {
+      const me = S.me && S.me.user;
+      center(`<div class="tour-logo">${ic('check', 'xl')}</div><h2>${t('tr_finish')}</h2><p>${t('tr_finish_sub')}</p>
+        <div class="row" style="gap:10px;justify-content:center;margin-top:20px">${me ? '' : `<button class="btn primary lg" data-t="login">${ic('user', 'sm')} ${t('tr_login')}</button>`}<button class="btn lg ${me ? 'primary' : ''}" data-t="skip">${t('tr_done')}</button></div>`);
+    } else {
+      const [title, text] = I18N[LANG][list[i][1]] || I18N.he[list[i][1]];
+      tip.innerHTML = `<div class="row" style="gap:8px;margin-bottom:6px"><span class="num">${i + 1}</span><b style="font-size:17px">${esc(title)}</b><span class="spacer"></span><span class="faint" style="font-size:12.5px">${i + 1}/${list.length}</span></div>
+        <p>${esc(text)}</p><div class="tour-bar"><i style="width:${(i + 1) / list.length * 100}%"></i></div>
+        <div class="row" style="gap:8px;margin-top:14px"><button class="btn sm ghost" data-t="skip">${t('tr_skip')}</button><span class="spacer"></span>${i > 0 ? `<button class="btn sm" data-t="back">${t('tr_back')}</button>` : ''}<button class="btn sm primary" data-t="next">${i === list.length - 1 ? t('tr_done') : t('tr_next')}</button></div>`;
+      requestAnimationFrame(place);
+    }
+    tip.querySelectorAll('[data-t]').forEach(b => b.onclick = async () => {
+      const a = b.dataset.t;
+      if (a === 'skip') return end();
+      if (a === 'login') { end(); return doLogin(); }
+      i += a === 'next' ? 1 : -1;
+      if (i > steps().length) return end();
+      draw();
+    });
+    const main = tip.querySelector('[data-t="next"], [data-t="skip"]'); if (main) main.focus();
+  }
+  const key = e => { if (e.key === 'Escape') end(); if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const b = tip.querySelector(`[data-t="${(e.key === 'ArrowLeft') === (LANG === 'he') ? 'next' : 'back'}"]`); if (b) b.click(); } };
+  window.addEventListener('resize', place);
+  document.addEventListener('keydown', key);
+  draw();
+}
+// replay from the settings page
+const _vSettingsTour = vSettings;
+vSettings = async function (p, stale) {
+  await _vSettingsTour(p, stale);
+  if (stale()) return;
+  const v = view.querySelector('.view-in');
+  if (v) { v.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px"><div class="card-h">${ic('sparkle')}<h3>${t('tr_card')}</h3><span class="spacer"></span><button class="btn" id="tourAgain">${ic('refresh', 'sm')} ${t('tr_replay')}</button></div></div>`); $('#tourAgain').onclick = () => startTour(); }
+};
+
 /* ================= start ================= */
 // runs last, so every view above is the newest version. Start right away; account and site info arrive in the background,
 // then the first screen is drawn again with them (home background, staff buttons).
@@ -2209,3 +2310,8 @@ Promise.all([
 ]).then(() => { if (['home', 'discover'].includes(S.route)) go(S.route, S.params, true); });
 S.started = true;
 PL.timer = setTimeout(hideLoader, 1000);
+// first time in the app: the welcome + tour, after the loader is gone
+let firstRun = false; try { firstRun = !localStorage.getItem(TOUR_KEY); } catch { }
+// (not on top of the maintenance screen — wait until the site is back)
+const tryTour = () => { if ($('#maintScreen') || S.route !== 'home') return setTimeout(tryTour, 5000); startTour(); };
+if (firstRun) setTimeout(tryTour, 1700);
