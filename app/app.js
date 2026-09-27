@@ -1780,7 +1780,7 @@ async function aUsers(body, stale) {
   const load = async () => {
     const list = await api('/api/admin/users?' + new URLSearchParams(USER_Q ? { q: USER_Q } : USER_BANNED ? { filter: 'banned' } : {}));
     if (stale()) return;
-    $('#uList').innerHTML = list.map(u => `<div class="lrow big u-row ${u.id === USER_OPEN ? 'on' : ''}" data-u="${esc(u.id)}"><div class="av-wrap"><img class="av" src="${avatarOf(u)}" alt="">${u.online ? '<span class="online-dot abs"></span>' : ''}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b><div class="faint" style="font-size:12.5px">${[u.banned ? `<span class="chip danger">${t('banned_chip')}</span>` : '', u.staff ? `<span class="chip">${ic('shield', 'sm')}</span>` : '', u.warnings ? `⚠️ ${u.warnings}` : '', u.lastSeen ? timeAgo(u.lastSeen) : ''].filter(Boolean).join(' · ')}</div></div></div>`).join('') || emptyBox('user', t('no_results'));
+    $('#uList').innerHTML = list.map(u => `<div class="lrow big u-row ${u.id === USER_OPEN ? 'on' : ''}" data-u="${esc(u.id)}"><div class="av-wrap"><img class="av" src="${avatarOf(u)}" alt="">${u.online ? '<span class="online-dot abs"></span>' : ''}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b><div class="faint" style="font-size:12.5px">${[u.banned ? `<span class="chip danger">${u.banned.full ? t('full_ban_chip') : t('banned_chip')}</span>` : '', u.staff ? `<span class="chip">${ic('shield', 'sm')}</span>` : '', u.warnings ? `⚠️ ${u.warnings}` : '', u.lastSeen ? timeAgo(u.lastSeen) : ''].filter(Boolean).join(' · ')}</div></div></div>`).join('') || emptyBox('user', t('no_results'));
     $('#uList').querySelectorAll('[data-u]').forEach(r => r.onclick = () => { USER_OPEN = r.dataset.u; $('#uList').querySelectorAll('.u-row').forEach(x => x.classList.toggle('on', x === r)); openUser(); });
   };
   const openUser = async () => {
@@ -1793,8 +1793,8 @@ async function aUsers(body, stale) {
     box.innerHTML = `<div class="card"><div class="card-h"><img class="av" src="${avatarOf(u)}" alt="" style="width:52px;height:52px"><div style="flex:1;min-width:0"><h3 style="margin:0">${esc(u.name)}</h3><div class="faint mono ltr" style="font-size:12px">${esc(u.id)} · ${esc(u.provider)}</div></div><button class="btn sm" data-go="user:id:${esc(u.id)}">${ic('eye', 'sm')} ${t('view_profile')}</button></div>
       <div class="card-b stack" style="gap:16px">
         <div class="row" style="gap:14px;flex-wrap:wrap;font-size:13.5px"><span>${t('joined')} <b>${u.firstLogin ? fmtDate(u.firstLogin) : '—'}</b></span><span>${seenTxt(u)}</span><span><b>${u.projects}</b> ${t('projects')}</span><span><b>${u.servers}</b> ${t('servers')}</span><span><b>${u.tickets}</b> ${t('tickets_n')}</span><span><b>${u.reports}</b> ${t('reports_n')}</span></div>
-        ${u.banned ? `<div class="ban-box">${ic('ban')}<div style="flex:1"><b>${t('banned_chip')}</b> — ${esc(u.banned.reason)}<div class="faint" style="font-size:12.5px">${esc(u.banned.by)} · ${timeAgo(u.banned.at)} · ${u.banned.until ? t('suspended_until', fmtDate(u.banned.until)) : t('forever')}</div></div><button class="btn sm" id="uUnban">${t('unban')}</button></div>` : ''}
-        ${u.staff ? '' : `<div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" id="uWarn">⚠️ ${t('warn')}</button>${u.banned ? '' : `<button class="btn danger" id="uBanB">${ic('ban', 'sm')} ${t('ban')}</button>`}</div>`}
+        ${u.banned ? `<div class="ban-box">${ic('ban')}<div style="flex:1"><b>${u.banned.full ? t('full_ban_chip') : t('banned_chip')}</b> — ${esc(u.banned.reason)}<div class="faint" style="font-size:12.5px">${esc(u.banned.by)} · ${timeAgo(u.banned.at)} · ${u.banned.until ? t('suspended_until', fmtDate(u.banned.until)) : t('forever')}</div></div><button class="btn sm" id="uUnban">${t('unban')}</button></div>` : ''}
+        ${u.staff ? '' : `<div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" id="uWarn">⚠️ ${t('warn')}</button>${u.banned ? '' : `<button class="btn danger" id="uBanB">${ic('ban', 'sm')} ${t('ban_btn')}</button>`}</div>`}
         <div id="uForm"></div>
         <div><h4 style="margin:0 0 8px">${t('warnings')} (${u.warnings.length})</h4>${u.warnings.slice().reverse().map(w => `<div class="note">⚠️ ${esc(w.text)}<div class="faint" style="font-size:12px">${esc(w.by)} · ${timeAgo(w.at)}</div></div>`).join('') || '<p class="faint" style="margin:0">—</p>'}</div>
         <div><h4 style="margin:0 0 8px">${t('staff_notes')}</h4>${u.notes.slice().reverse().map(n => `<div class="note">${esc(n.text)}<div class="faint row" style="font-size:12px">${esc(n.by)} · ${timeAgo(n.at)}<span class="spacer"></span><button class="icon-btn" data-dn="${n.id}">${ic('trash', 'sm')}</button></div></div>`).join('')}
@@ -1804,7 +1804,7 @@ async function aUsers(body, stale) {
     const done = async (p, opts) => { try { await api(`/api/admin/users/${encodeURIComponent(u.id)}${p}`, opts); toast(t('saved')); openUser(); load(); } catch (err) { toast(err.message, 'err'); } };
     const form = (label, extra, cb) => { $('#uForm').innerHTML = `<form class="card card-b stack" style="gap:10px;background:var(--surface-2)"><div><label class="lbl">${label}</label><input type="text" name="reason" required minlength="3" maxlength="500"></div>${extra}<div class="row" style="gap:8px"><button class="btn primary">${ic('check', 'sm')} ${t('save')}</button><button type="button" class="btn ghost" data-c>${t('cancel')}</button></div></form>`; const f = $('#uForm form'); f.reason.focus(); f.querySelector('[data-c]').onclick = () => { $('#uForm').innerHTML = ''; }; f.onsubmit = e => { e.preventDefault(); cb(f); }; };
     if ($('#uWarn')) $('#uWarn').onclick = () => form(t('warn_reason'), '', f => done('/warn', { method: 'POST', body: { text: f.reason.value } }));
-    if ($('#uBanB')) $('#uBanB').onclick = () => form(t('ban_reason'), `<div><label class="lbl">${t('ban_days')}</label><input type="text" name="days" value="3" class="ltr" style="max-width:120px"></div>`, f => done('/ban', { method: 'PUT', body: { reason: f.reason.value, days: f.days.value } }));
+    if ($('#uBanB')) $('#uBanB').onclick = () => form(t('ban_reason'), banFields(), f => done('/ban', { method: 'PUT', body: banBody(f) }));
     if ($('#uUnban')) $('#uUnban').onclick = () => done('/ban', { method: 'DELETE' });
     $('#uNoteB').onclick = () => { const v = $('#uNote').value.trim(); if (v) done('/notes', { method: 'POST', body: { text: v } }); };
     box.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => done('/notes/' + b.dataset.dn, { method: 'DELETE' }));
@@ -2086,4 +2086,72 @@ aLook = async function (body, stale) {
       S.site = await api('/api/site'); applyAppearance(); toast(t('saved'));
     } catch (err) { toast(err.message, 'err'); }
   };
+};
+
+/* ================= bans: suspension or a full ban from the site ================= */
+Object.assign(I18N.he, {
+  ban_btn: 'באן / השעיה', ban_type: 'סוג', ban_full: 'באן מהאתר', ban_full_sub: 'חסום לגמרי — מנותק ולא יכול להתחבר', ban_susp: 'השעיה', ban_susp_sub: 'יכול לגלוש, אבל לא לפרסם, להגיב או לכתוב',
+  full_ban_chip: 'באן', banned_title: 'נחסמת מ-Craft Hub', banned_reason: 'סיבה', banned_until: 'הבאן יוסר ב-{x}', banned_forever: 'הבאן לצמיתות', banned_appeal: 'חושב שזו טעות? פנה אלינו בדיסקורד.', user_banned_ok: 'המשתמש קיבל באן ✓', unbanned_ok: 'הבאן הוסר ✓'
+});
+Object.assign(I18N.en, {
+  ban_btn: 'Ban / suspend', ban_type: 'Type', ban_full: 'Ban from the site', ban_full_sub: 'Fully blocked — signed out and can\'t sign in', ban_susp: 'Suspension', ban_susp_sub: 'Can browse, but can\'t post, comment or write',
+  full_ban_chip: 'Banned', banned_title: 'You were banned from Craft Hub', banned_reason: 'Reason', banned_until: 'The ban ends on {x}', banned_forever: 'The ban is permanent', banned_appeal: 'Think it\'s a mistake? Contact us on Discord.', user_banned_ok: 'User banned ✓', unbanned_ok: 'Ban lifted ✓'
+});
+const banFields = () => `<div><label class="lbl">${t('ban_type')}</label><div class="ban-types">
+    <label class="ban-type"><input type="radio" name="full" value="1" checked><span><b>⛔ ${t('ban_full')}</b><small>${t('ban_full_sub')}</small></span></label>
+    <label class="ban-type"><input type="radio" name="full" value=""><span><b>⏸️ ${t('ban_susp')}</b><small>${t('ban_susp_sub')}</small></span></label></div></div>
+  <div><label class="lbl">${t('ban_days')}</label><div class="row" style="gap:6px;flex-wrap:wrap">${[1, 3, 7, 30, 0].map(d => `<button type="button" class="btn sm ${d === 7 ? 'primary' : ''}" data-days="${d}">${d ? d + (LANG === 'he' ? ' ימים' : 'd') : t('forever')}</button>`).join('')}<input type="text" name="days" value="7" class="ltr" style="max-width:90px;height:36px"></div></div>`;
+const banBody = f => ({ reason: f.reason.value, days: f.days.value, full: !!f.querySelector('[name=full]:checked').value });
+// quick-day buttons inside any ban form
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-days]'); if (!b) return;
+  const f = b.closest('form'); if (!f || !f.days) return;
+  f.days.value = b.dataset.days; f.querySelectorAll('[data-days]').forEach(x => x.classList.toggle('primary', x === b));
+});
+
+// ban straight from someone's profile (moderators)
+const _vUserBan = vUser;
+vUser = async function (params, stale) {
+  await _vUserBan(params, stale);
+  if (stale() || !hasPerm('moderation') || (S.me.user && S.me.user.id === params.id)) return;
+  const head = view.querySelector('.phead');
+  if (!head) return;
+  let u;
+  try { u = await api('/api/admin/users/' + encodeURIComponent(params.id)); } catch { return; }
+  if (stale() || u.staff) return;
+  const row = head.querySelector('.row:last-child') || head;
+  row.insertAdjacentHTML('beforeend', u.banned ? `<button class="btn" id="pUnban">${ic('ban', 'sm')} ${t('unban')}</button>` : `<button class="btn danger" id="pBan">${ic('ban', 'sm')} ${t('ban_btn')}</button>`);
+  if (u.banned) head.querySelector('h1').insertAdjacentHTML('afterend', `<span class="chip danger">${u.banned.full ? t('full_ban_chip') : t('banned_chip')}</span>`);
+  if ($('#pUnban')) $('#pUnban').onclick = async () => { try { await api('/api/admin/users/' + encodeURIComponent(params.id) + '/ban', { method: 'DELETE' }); toast(t('unbanned_ok')); go('user', { id: params.id }, true); } catch (err) { toast(err.message, 'err'); } };
+  if ($('#pBan')) $('#pBan').onclick = () => {
+    const m = document.createElement('div'); m.className = 'modal-back';
+    m.innerHTML = `<form class="card tk-modal"><div class="card-h">${ic('ban')}<h3>${t('ban_btn')}</h3><span class="faint">${esc(u.name)}</span><span class="spacer"></span><button type="button" class="icon-btn" data-x>✕</button></div><div class="card-b stack">
+      ${banFields()}<div><label class="lbl">${t('ban_reason')}</label><input type="text" name="reason" required minlength="3" maxlength="500"></div>
+      <button class="btn danger lg">${ic('ban', 'sm')} ${t('ban_btn')}</button></div></form>`;
+    document.body.appendChild(m);
+    m.querySelector('[data-x]').onclick = () => m.remove();
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    m.querySelector('form').onsubmit = async e => {
+      e.preventDefault();
+      try { await api('/api/admin/users/' + encodeURIComponent(params.id) + '/ban', { method: 'PUT', body: banBody(e.target) }); m.remove(); toast(t('user_banned_ok')); go('user', { id: params.id }, true); } catch (err) { toast(err.message, 'err'); }
+    };
+  };
+};
+
+// the banned person's side: a full-screen notice
+function showBanScreen(b) {
+  if (!b || $('#banScreen')) return;
+  const el = document.createElement('div'); el.id = 'banScreen';
+  el.innerHTML = `<div class="card ban-card"><div class="ban-ic">${ic('ban', 'xl')}</div><h1>${t('banned_title')}</h1>
+    ${b.reason ? `<p><b>${t('banned_reason')}:</b> ${esc(b.reason)}</p>` : ''}<p class="faint">${b.until ? t('banned_until', fmtDate(b.until)) : t('banned_forever')}</p>
+    <p class="faint" style="font-size:13.5px">${t('banned_appeal')}</p>${S.site && S.site.discordInvite ? `<button class="btn primary lg" data-ext="${esc(S.site.discordInvite)}">Discord</button>` : ''}</div>`;
+  document.body.appendChild(el);
+  bindCommon(el);
+}
+const _loadMeBan = loadMe;
+loadMe = async function () { await _loadMeBan(); if (S.me && S.me.bannedUser) showBanScreen(S.me.banned); };
+const _apiBan = api;
+api = async function (path, opts) {
+  try { return await _apiBan(path, opts); }
+  catch (err) { if (err.status === 403 && err.data && err.data.banned && err.data.banned.full) showBanScreen(err.data.banned); throw err; }
 };
