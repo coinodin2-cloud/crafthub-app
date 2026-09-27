@@ -940,12 +940,309 @@ function maintStaffBar() {
   const on = S.site && S.site.maintenance && S.site.maintenance.enabled;
   // regular users: the maintenance screen right away; staff / allow list: a reminder bar
   if (on && S.me && !S.me.maintenanceAccess) { showMaintenance(); return; }
-  if (!on && MAINT.on) { checkMaintenance(); return; }
+  if (MAINT.on && (!on || (S.me && S.me.maintenanceAccess))) { checkMaintenance(); return; }
   let bar = $('#maintStaffBar');
   if (on && !MAINT.on) { if (!bar) { bar = document.createElement('div'); bar.id = 'maintStaffBar'; bar.innerHTML = `${ic('tool', 'sm')} ${t('maint_staff')}`; $('#main').insertBefore(bar, $('#view')); } }
   else if (bar) bar.remove();
 }
 setInterval(() => api('/api/site').then(x => { S.site = x; maintStaffBar(); }).catch(() => { }), 60000);
+
+
+/* ================= everything the website had: likes, reviews, follows, studio, creator apply, partners, profile ================= */
+Object.assign(I18N.he, {
+  like: 'לייק', liked: 'אהבת', follow_proj: 'עקוב', following_proj: 'במעקב', reviews_t: 'ביקורות', write_review: 'כתוב ביקורת', edit_review: 'ערוך את הביקורת שלך', review_ph: 'מה דעתך?', pick_stars: 'בחר כוכבים', review_saved: 'הביקורת נשמרה ✓', no_reviews: 'עוד אין ביקורות', login_to_review: 'התחבר כדי לכתוב ביקורת',
+  following_page: 'עוקב', feed: 'חדש ממי שאני עוקב', feed_empty: 'אין עדיין עדכונים — עקוב אחרי קרייטורים ופרויקטים', feed_new: 'פרויקט חדש', feed_update: 'גרסה חדשה', people_i_follow: 'אנשים שאני עוקב אחריהם', projects_i_follow: 'פרויקטים שאני עוקב אחריהם',
+  studio: 'הפרויקטים שלי', studio_sub: 'העלאה, עריכה וגרסאות חדשות', new_project: 'פרויקט חדש', pick_type: 'מה מעלים?', choose_file: 'בחירת קובץ', reading: 'קורא את הקובץ…', publish_p: 'פרסום', project_published: 'הפרויקט פורסם ✓',
+  name: 'שם', short: 'תיאור קצר', long: 'תיאור מלא', tags: 'תגיות (מופרדות בפסיק)', notes: 'מה חדש בגרסה', version_n: 'מספר גרסה', edit_project: 'עריכת פרויקט', new_version_up: 'העלאת גרסה חדשה', change_icon: 'שינוי אייקון', add_image: 'הוספת תמונה לגלריה', show_on: 'מוצג לכולם', delete_project: 'מחיקת הפרויקט', version_ok: 'הגרסה עלתה ✓', no_my_projects: 'עוד לא העלית פרויקטים', limit_left: 'נשארו לך {x} העלאות',
+  become_creator: 'להפוך לקרייטור', apply_sub: 'קרייטורים מעלים ללא הגבלה ומקבלים תג בפרופיל', apply_send: 'שליחת הבקשה', apply_sent: 'הבקשה נשלחה ✓', apply_pending: 'הבקשה שלך ממתינה לבדיקה', apply_rejected: 'הבקשה הקודמת נדחתה', already_creator: 'אתה כבר קרייטור 🎉', need_google: 'כדי להגיש בקשה צריך להתחבר עם Google',
+  partners: 'שותפים', partners_sub: 'שרתים ואתרים שעובדים איתנו', team: 'הצוות', visit: 'כניסה', members: 'חברים',
+  profile: 'הפרופיל שלי', display_name: 'שם תצוגה', bio: 'על עצמי', mc_user: 'שם במיינקראפט', socials: 'רשתות חברתיות', save: 'שמירה',
+  add_server: 'הוספת שרת', my_servers: 'השרתים שלי', edit_server: 'עריכת שרת', server_address: 'כתובת השרת', srv_short: 'תיאור קצר', srv_desc: 'תיאור מלא', srv_version: 'גרסה', srv_discord: 'קישור דיסקורד', srv_website: 'אתר', votifier: 'חיבור הצבעות (Votifier)', vf_host: 'כתובת', vf_port: 'פורט', vf_key: 'מפתח ציבורי',
+  upload_icon: 'אייקון', upload_banner: 'באנר', test_vote: 'הצבעת בדיקה', test_ok: 'הבדיקה הגיעה לשרת ✓', delete_server: 'מחיקת השרת', server_saved: 'השרת נשמר ✓', veteran: 'ותיק'
+});
+Object.assign(I18N.en, {
+  like: 'Like', liked: 'Liked', follow_proj: 'Follow', following_proj: 'Following', reviews_t: 'Reviews', write_review: 'Write a review', edit_review: 'Edit your review', review_ph: 'What do you think?', pick_stars: 'Pick stars', review_saved: 'Review saved ✓', no_reviews: 'No reviews yet', login_to_review: 'Sign in to review',
+  following_page: 'Following', feed: 'New from people I follow', feed_empty: 'Nothing yet — follow creators and projects', feed_new: 'New project', feed_update: 'New version', people_i_follow: 'People I follow', projects_i_follow: 'Projects I follow',
+  studio: 'My projects', studio_sub: 'Upload, edit and release new versions', new_project: 'New project', pick_type: 'What are you uploading?', choose_file: 'Choose file', reading: 'Reading the file…', publish_p: 'Publish', project_published: 'Project published ✓',
+  name: 'Name', short: 'Short description', long: 'Full description', tags: 'Tags (comma separated)', notes: "What's new in this version", version_n: 'Version number', edit_project: 'Edit project', new_version_up: 'Upload a new version', change_icon: 'Change icon', add_image: 'Add gallery image', show_on: 'Visible to everyone', delete_project: 'Delete project', version_ok: 'Version uploaded ✓', no_my_projects: "You haven't uploaded anything yet", limit_left: '{x} uploads left',
+  become_creator: 'Become a creator', apply_sub: 'Creators upload without limits and get a profile badge', apply_send: 'Send request', apply_sent: 'Request sent ✓', apply_pending: 'Your request is waiting for review', apply_rejected: 'Your last request was rejected', already_creator: "You're a creator 🎉", need_google: 'Sign in with Google to apply',
+  partners: 'Partners', partners_sub: 'Servers and sites that work with us', team: 'The team', visit: 'Visit', members: 'members',
+  profile: 'My profile', display_name: 'Display name', bio: 'About me', mc_user: 'Minecraft username', socials: 'Social links', save: 'Save',
+  add_server: 'Add server', my_servers: 'My servers', edit_server: 'Edit server', server_address: 'Server address', srv_short: 'Short description', srv_desc: 'Full description', srv_version: 'Version', srv_discord: 'Discord link', srv_website: 'Website', votifier: 'Vote connection (Votifier)', vf_host: 'Host', vf_port: 'Port', vf_key: 'Public key',
+  upload_icon: 'Icon', upload_banner: 'Banner', test_vote: 'Test vote', test_ok: 'The test reached your server ✓', delete_server: 'Delete server', server_saved: 'Server saved ✓', veteran: 'Veteran'
+});
+Object.assign(ICONS, { image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16Z"/>', handshake: '<path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.9-3.9a3 3 0 0 0-4.2 0l-.9.9a1 1 0 1 1-3-3l2.8-2.8a5.8 5.8 0 0 1 7-.9l.5.3a2 2 0 0 0 1.4.3L21 4"/><path d="m21 3 1 11h-2M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8"/>' });
+const upErr = r => (r && r.data && r.data.error) || t('error');
+
+/* ---------- reviews (projects and servers share the same API shape) ---------- */
+async function reviewsCard(box, base) {
+  box.innerHTML = '<div class="spin" style="width:26px;height:26px;margin:20px auto"></div>';
+  let d;
+  try { d = await api(base + '/reviews'); } catch (e) { box.innerHTML = `<p class="faint">${esc(e.message)}</p>`; return; }
+  const mine = d.reviews.find(r => r.mine);
+  let pick = mine ? mine.rating : 0;
+  const avg = d.reviews.length ? Math.round(d.reviews.reduce((s, r) => s + r.rating, 0) / d.reviews.length * 10) / 10 : null;
+  box.innerHTML = `<div class="rv-top"><div class="rv-avg"><b>${avg != null ? avg : '—'}</b><span class="stars-big">${avg != null ? '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg)) : '☆☆☆☆☆'}</span><small class="faint">${d.reviews.length} ${t('reviews_t')}</small></div>
+    ${d.canReview ? `<form class="rv-form" id="rvF"><b>${mine ? t('edit_review') : t('write_review')}</b><div class="row" id="rvS">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star-btn" data-n="${n}">★</button>`).join('')}</div><textarea name="text" rows="3" maxlength="1500" placeholder="${t('review_ph')}">${esc(mine ? mine.text : '')}</textarea><button class="btn primary">${ic('send', 'sm')} ${t('send')}</button></form>`
+      : !(S.me && S.me.user) ? `<div class="rv-form"><span class="faint">${t('login_to_review')}</span><button class="btn primary" id="rvLogin">${ic('user', 'sm')} ${t('login')}</button></div>` : ''}</div>
+    <div class="rv-list">${d.reviews.length ? d.reviews.map(r => `<div class="rv"><img class="av" src="${esc(siteImg(r.avatar) || r.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt=""><div style="flex:1;min-width:0"><div class="row" style="gap:10px;flex-wrap:wrap"><b>${esc(r.name)}</b><span class="stars-sm">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span><span class="faint">${timeAgo(r.at)}</span>${r.canDelete ? `<button class="icon-btn" data-rdel="${esc(r.id)}">${ic('trash', 'sm')}</button>` : ''}</div>${r.text ? `<p>${esc(r.text)}</p>` : ''}</div></div>`).join('') : `<p class="faint">${t('no_reviews')}</p>`}</div>`;
+  const paint = n => box.querySelectorAll('#rvS .star-btn').forEach(b => b.classList.toggle('on', Number(b.dataset.n) <= n));
+  paint(pick);
+  box.querySelectorAll('#rvS .star-btn').forEach(b => { b.onmouseenter = () => paint(Number(b.dataset.n)); b.onclick = () => { pick = Number(b.dataset.n); paint(pick); }; });
+  const rs = box.querySelector('#rvS'); if (rs) rs.onmouseleave = () => paint(pick);
+  const f = box.querySelector('#rvF');
+  if (f) f.onsubmit = async e => { e.preventDefault(); if (!pick) return toast(t('pick_stars'), 'err'); try { await api(base + '/reviews', { method: 'POST', body: { rating: pick, text: f.text.value } }); toast(t('review_saved')); reviewsCard(box, base); } catch (err) { toast(err.message, 'err'); } };
+  const rl = box.querySelector('#rvLogin'); if (rl) rl.onclick = async () => { if (await doLogin()) reviewsCard(box, base); };
+  box.querySelectorAll('[data-rdel]').forEach(b => b.onclick = async () => { if (!confirm(t('confirm_delete', ''))) return; try { await api(`${base}/reviews/${b.dataset.rdel}`, { method: 'DELETE' }); reviewsCard(box, base); } catch (e) { toast(e.message, 'err'); } });
+}
+
+/* ---------- project page: like, follow, reviews ---------- */
+const _vProject = vProject;
+vProject = async function (params, stale) {
+  await _vProject(params, stale);
+  if (stale() || !S.params.project) return;
+  const p = S.params.project;
+  const acts = view.querySelector('.phead .acts');
+  if (acts) {
+    acts.insertAdjacentHTML('beforeend', `<button class="btn lg ${p.liked ? 'ok' : ''}" id="likeB">${ic('heart', 'sm')} <span>${fmtNum(p.likes || 0)}</span></button><button class="btn lg" id="pfB">${ic('bell', 'sm')} ${t('follow_proj')}</button>`);
+    $('#likeB').onclick = async () => { if (!(S.me && S.me.user)) return doLogin(); try { const r = await api(`/api/projects/${encodeURIComponent(p.slug)}/like`, { method: 'POST', body: {} }); p.liked = r.liked; $('#likeB').classList.toggle('ok', r.liked); $('#likeB span').textContent = fmtNum(r.likes); } catch (e) { toast(e.message, 'err'); } };
+    const drawF = r => { $('#pfB').classList.toggle('ok', r.following); $('#pfB').innerHTML = `${ic(r.following ? 'check' : 'bell', 'sm')} ${r.following ? t('following_proj') : t('follow_proj')} <span class="faint">${fmtNum(r.followers)}</span>`; };
+    api(`/api/projects/${encodeURIComponent(p.slug)}/follow`).then(drawF).catch(() => { });
+    $('#pfB').onclick = async () => { if (!(S.me && S.me.user)) return doLogin(); try { drawF(await api(`/api/projects/${encodeURIComponent(p.slug)}/follow`, { method: 'POST', body: {} })); } catch (e) { toast(e.message, 'err'); } };
+  }
+  view.querySelector('.view-in').insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:22px"><div class="card-h">${ic('star')}<h3>${t('reviews_t')}</h3></div><div class="card-b" id="pRev"></div></div>`);
+  reviewsCard($('#pRev'), '/api/projects/' + encodeURIComponent(p.slug));
+};
+
+/* ---------- following feed ---------- */
+async function vFollowing(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const [feed, people, projs] = await Promise.all([api('/api/me/feed').catch(() => []), api('/api/me/following').catch(() => []), api('/api/me/following-projects').catch(() => [])]);
+  if (stale()) return;
+  put(`<div class="head"><h1>${ic('bell', 'lg')} ${t('following_page')}</h1></div>
+    <div class="play-layout"><div class="card"><div class="card-h">${ic('sparkle')}<h3>${t('feed')}</h3></div><div class="card-b">${feed.length ? feed.map(f => `<div class="lrow big" data-go="project:slug:${esc(f.id)}"><img class="av" src="${esc(siteImg(f.ownerAvatar) || f.ownerAvatar || '')}" alt=""><div style="flex:1;min-width:0"><b>${esc(f.ownerName)}</b> <span class="chip ${f.type === 'update' ? 'accent' : ''}">${f.type === 'update' ? t('feed_update') : t('feed_new')}</span><div class="faint">${esc(f.name)} · v${esc(f.version || '')}</div></div><span class="faint">${timeAgo(f.updatedAt)}</span></div>`).join('') : emptyBox('bell', t('feed_empty'))}</div></div>
+    <aside class="stack"><div class="card"><div class="card-h">${ic('users')}<h3>${t('people_i_follow')}</h3></div><div class="card-b">${people.map(u => `<div class="lrow big" data-go="user:id:${esc(u.id)}"><img class="av" src="${esc(siteImg(u.avatar) || u.avatar || '')}" alt=""><b style="flex:1">${esc(u.name)}</b><span class="faint">${fmtNum(u.followers)}</span></div>`).join('') || '<p class="faint">—</p>'}</div></div>
+      <div class="card"><div class="card-h">${ic('box')}<h3>${t('projects_i_follow')}</h3></div><div class="card-b">${projs.map(x => `<div class="lrow big" data-go="project:slug:${esc(x.slug)}">${pic(x, 'sm')}<b style="flex:1">${esc(x.name)}</b></div>`).join('') || '<p class="faint">—</p>'}</div></div></aside></div>`);
+}
+
+/* ---------- studio: my projects, upload, edit ---------- */
+async function vStudio(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  if (p.slug) return studioEdit(p.slug, stale);
+  if (p.new) return studioNew(stale);
+  const [mine, cm] = await Promise.all([api('/api/studio/projects'), api('/api/creator/me').catch(() => ({}))]);
+  if (stale()) return;
+  const left = S.me.uploadLimit ? Math.max(0, S.me.uploadLimit - (S.me.myProjects || mine.length)) : null;
+  put(`<div class="head"><div><h1>${ic('box', 'lg')} ${t('studio')}</h1><p>${t('studio_sub')}${left != null ? ` · ${t('limit_left', left)}` : ''}</p></div><span class="spacer"></span>
+      ${!cm.isCreator ? `<button class="btn lg" data-go="apply">${ic('badge', 'sm')} ${t('become_creator')}</button>` : ''}<button class="btn primary lg" data-go="studio:new:1" ${left === 0 ? 'disabled' : ''}>${ic('upload', 'sm')} ${t('new_project')}</button></div>
+    ${mine.length ? `<div class="grid">${mine.map(x => `<div class="pcard" data-go="studio:slug:${esc(x.slug)}"><div class="top">${pic(x)}<div style="min-width:0"><b>${esc(x.name)}</b><div class="by">${esc(typeName(x.type || 'plugin'))} · v${esc(x.version || '')}</div></div></div><p>${esc(x.short || '')}</p><div class="foot"><span class="stat">${ic('download', 'sm')} ${fmtNum(x.downloads)}</span><span class="stat">${ic('heart', 'sm')} ${fmtNum(x.likes || 0)}</span>${x.visible === false ? `<span class="chip">${t('hidden')}</span>` : ''}<span class="btn sm" style="margin-inline-start:auto">${ic('edit', 'sm')} ${t('edit_project')}</span></div></div>`).join('')}</div>` : emptyBox('box', t('no_my_projects'))}`);
+}
+async function studioNew(stale) {
+  const types = Object.entries(S.site.projectTypes || { plugin: { exts: ['.jar'] } });
+  put(`<div class="head"><h1>${ic('upload', 'lg')} ${t('new_project')}</h1></div><h2 style="margin-bottom:16px">${t('pick_type')}</h2>
+    <div class="type-grid">${types.map(([k, v]) => `<button class="type-card" data-type="${esc(k)}"><b>${esc(typeName(k))}</b><span class="faint mono">${esc((v.exts || []).join(' / '))}</span></button>`).join('')}</div><div id="stNext"></div>`);
+  view.querySelectorAll('[data-type]').forEach(b => b.onclick = async () => {
+    const type = b.dataset.type, exts = ((S.site.projectTypes || {})[type] || {}).exts || ['.jar'];
+    b.disabled = true; b.querySelector('b').textContent = t('reading');
+    const r = await B.uploadFile({ apiPath: '/api/studio/draft', field: 'file', fields: { type }, filters: [{ name: typeName(type), extensions: exts.map(x => x.replace('.', '')) }] });
+    b.disabled = false; b.querySelector('b').textContent = typeName(type);
+    if (r.canceled) return;
+    if (r.status !== 200) return toast(upErr(r), 'err');
+    const d = r.data, cats = ((S.site.projectTypes || {})[type] || {}).categories || [];
+    $('#stNext').innerHTML = `<form class="card" id="pubF" style="margin-top:22px"><div class="card-h">${d.info.icon ? `<img src="${esc(d.info.icon)}" class="av" style="border-radius:10px">` : ''}<h3>${esc(r.fileName)}</h3><span class="faint">${fmtSize(d.size)}</span></div><div class="card-b form2">
+      <div><label class="lbl">${t('name')}</label><input type="text" name="name" required maxlength="60" value="${esc(d.info.name || '')}"></div>
+      <div><label class="lbl">${t('category')}</label><select name="category">${cats.map(c => `<option ${c === d.info.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+      <div class="full"><label class="lbl">${t('short')}</label><input type="text" name="short" required maxlength="200" value="${esc(d.info.short || '')}"></div>
+      ${d.info.versionDetected ? '' : `<div><label class="lbl">${t('version_n')}</label><input type="text" name="version" value="1.0.0" required class="ltr"></div>`}
+      <div class="full"><label class="lbl">${t('long')}</label><textarea name="description" rows="8">${esc(d.info.description || '')}</textarea></div>
+      <div class="full"><button class="btn primary lg">${ic('upload', 'sm')} ${t('publish_p')}</button></div></div></form>`;
+    $('#pubF').onsubmit = async e => {
+      e.preventDefault(); const f = e.target;
+      try { const pr = await api('/api/studio/projects', { method: 'POST', body: { token: d.token, name: f.name.value.trim(), category: f.category.value, short: f.short.value.trim(), description: f.description.value, version: f.version ? f.version.value.trim() : undefined, useDetectedIcon: true } }); toast(t('project_published')); S.projectsAt = 0; go('studio', { slug: pr.slug }); }
+      catch (err) { toast(err.message, 'err'); }
+    };
+    $('#pubF').scrollIntoView({ behavior: 'smooth' });
+  });
+}
+async function studioEdit(slug, stale) {
+  const p = await api('/api/studio/projects/' + encodeURIComponent(slug));
+  if (stale()) return;
+  const cats = ((S.site.projectTypes || {})[p.type || 'plugin'] || {}).categories || [];
+  const exts = ((S.site.projectTypes || {})[p.type || 'plugin'] || {}).exts || ['.jar'];
+  const base = '/api/studio/projects/' + encodeURIComponent(slug);
+  put(`<div class="head">${pic(p, 'xl')}<div><h1>${esc(p.name)}</h1><p>${esc(typeName(p.type || 'plugin'))} · v${esc(p.version || '')} · ${fmtNum(p.downloads)} ${t('downloads')}</p></div><span class="spacer"></span><button class="btn lg" data-go="project:slug:${esc(slug)}">${ic('eye', 'sm')}</button></div>
+    <div class="play-layout">
+      <form class="card" id="edF"><div class="card-h">${ic('edit')}<h3>${t('edit_project')}</h3></div><div class="card-b form2">
+        <div><label class="lbl">${t('name')}</label><input type="text" name="name" required maxlength="60" value="${esc(p.name)}"></div>
+        <div><label class="lbl">${t('category')}</label><select name="category">${cats.map(c => `<option ${c === p.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+        <div class="full"><label class="lbl">${t('short')}</label><input type="text" name="short" maxlength="200" value="${esc(p.short || '')}"></div>
+        <div class="full"><label class="lbl">${t('tags')}</label><input type="text" name="tags" value="${esc((p.tags || []).join(', '))}"></div>
+        <div class="full"><label class="lbl">${t('long')}</label><textarea name="description" rows="12">${esc(p.description || '')}</textarea></div>
+        <label class="row full"><label class="tgl"><input type="checkbox" name="visible" ${p.visible !== false ? 'checked' : ''}><span></span></label> ${t('show_on')}</label>
+        <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>
+      <aside class="stack">
+        <div class="card"><div class="card-h">${ic('upload')}<h3>${t('new_version_up')}</h3></div><div class="card-b stack" style="gap:10px"><input type="text" id="nvVer" class="ltr" placeholder="${t('version_n')} (auto)"><textarea id="nvNotes" rows="3" placeholder="${t('notes')}"></textarea><button class="btn primary" id="nvUp">${ic('upload', 'sm')} ${t('choose_file')}</button></div></div>
+        <div class="card card-b stack" style="gap:10px"><button class="btn" id="icUp">${ic('image', 'sm')} ${t('change_icon')}</button><button class="btn" id="galUp">${ic('image', 'sm')} ${t('add_image')} (${(p.gallery || []).length}/8)</button></div>
+        <button class="btn danger lg" id="delP">${ic('trash', 'sm')} ${t('delete_project')}</button>
+      </aside></div>`);
+  $('#edF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api(base, { method: 'PUT', body: { name: f.name.value.trim(), category: f.category.value, short: f.short.value.trim(), tags: f.tags.value, description: f.description.value, visible: f.visible.checked } }); toast(t('saved')); S.projectsAt = 0; } catch (err) { toast(err.message, 'err'); } };
+  $('#nvUp').onclick = async () => { const r = await B.uploadFile({ apiPath: base + '/version', field: 'file', fields: { version: $('#nvVer').value.trim(), notes: $('#nvNotes').value }, filters: [{ name: typeName(p.type || 'plugin'), extensions: exts.map(x => x.replace('.', '')) }] }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('version_ok')); S.projectsAt = 0; go('studio', { slug }, true); };
+  const img = [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }];
+  $('#icUp').onclick = async () => { const r = await B.uploadFile({ apiPath: base + '/icon', field: 'icon', filters: img }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('saved')); go('studio', { slug }, true); };
+  $('#galUp').onclick = async () => { const r = await B.uploadFile({ apiPath: base + '/gallery', field: 'image', filters: img }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('saved')); go('studio', { slug }, true); };
+  $('#delP').onclick = async () => { if (!confirm(t('confirm_delete', p.name))) return; try { await api(base, { method: 'DELETE' }); toast(t('deleted')); S.projectsAt = 0; go('studio', {}); } catch (err) { toast(err.message, 'err'); } };
+}
+
+/* ---------- become a creator ---------- */
+async function vApply(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const d = await api('/api/creator/me');
+  if (stale()) return;
+  if (d.isCreator) return put(emptyBox('badge', t('already_creator')));
+  const a = d.application;
+  put(`<div class="head"><div><h1>${ic('badge', 'lg')} ${t('become_creator')}</h1><p>${t('apply_sub')}</p></div></div>
+    ${a && a.status === 'pending' ? `<div class="card card-b empty">${ic('clock')}<b>${t('apply_pending')}</b></div>` : `
+    ${a && a.status === 'rejected' ? `<div class="offline" style="color:#ffb4b4">${t('apply_rejected')}${a.reason ? ': ' + esc(a.reason) : ''}</div>` : ''}
+    ${S.me.user.provider !== 'google' ? `<div class="offline">${t('need_google')}</div>` : ''}
+    <form class="card" id="apF" style="max-width:820px"><div class="card-b stack">${(d.questions || []).map((q, i) => `<div><label class="lbl">${esc(q)}</label><textarea name="q${i}" rows="3" required></textarea></div>`).join('')}<button class="btn primary lg">${ic('send', 'sm')} ${t('apply_send')}</button></div></form>`}`);
+  const f = $('#apF');
+  if (f) f.onsubmit = async e => { e.preventDefault(); try { await api('/api/creator/apply', { method: 'POST', body: { answers: (d.questions || []).map((q, i) => f['q' + i].value.trim()) } }); toast(t('apply_sent')); go('apply', {}, true); } catch (err) { toast(err.message, 'err'); } };
+}
+
+/* ---------- partners + team ---------- */
+async function vPartners(p, stale) {
+  const [list, team] = await Promise.all([api('/api/partners').catch(() => []), api('/api/team').catch(() => [])]);
+  if (stale()) return;
+  const card = x => `<div class="partner" data-ext="${esc(x.url)}"><div class="pic">${siteImg(x.logo) || /^https:/.test(x.logo || '') ? `<img src="${esc(siteImg(x.logo) || x.logo)}" alt="">` : esc((x.name || '?').charAt(0))}</div><div style="flex:1;min-width:0"><div class="row" style="gap:8px"><b>${esc(x.name)}</b><span class="chip ${x.type === 'discord' ? 'accent' : ''}">${x.type === 'discord' ? 'Discord' : t('website')}</span></div>${x.description ? `<p>${esc(x.description)}</p>` : ''}${x.members ? `<small class="faint">${ic('users', 'sm')} ${esc(x.members)} ${t('members')}</small>` : ''}</div><span class="btn sm">${ic('ext', 'sm')} ${t('visit')}</span></div>`;
+  put(`<div class="head"><div><h1>${ic('handshake', 'lg')} ${t('partners')}</h1><p>${t('partners_sub')}</p></div></div>
+    ${list.length ? `<div class="partners">${list.map(card).join('')}</div>` : emptyBox('handshake', t('no_results'))}
+    ${team.length ? `<h2 style="margin:34px 0 16px">${ic('shield')} ${t('team')}</h2><div class="team">${team.map(m => `<div class="tm" data-go="user:id:${esc(m.id)}"><img src="${esc(siteImg(m.avatar) || m.avatar || '')}" alt=""><b>${esc(m.name || '')}</b>${m.title || m.owner ? `<span class="chip accent">${esc(m.title || 'Owner')}</span>` : ''}</div>`).join('')}</div>` : ''}`);
+}
+
+/* ---------- my profile (in settings) ---------- */
+const _vSettings = vSettings;
+vSettings = async function (p, stale) {
+  await _vSettings(p, stale);
+  if (stale() || !(S.me && S.me.user)) return;
+  const [st, mc] = await Promise.all([api('/api/user/settings').catch(() => ({})), api('/api/me/minecraft').catch(() => ({}))]);
+  if (stale()) return;
+  const so = st.socials || {};
+  const stack = view.querySelector('.view-in .stack');
+  if (!stack) return;
+  stack.insertAdjacentHTML('afterbegin', `<form class="card" id="profF"><div class="card-h">${ic('user')}<h3>${t('profile')}</h3></div><div class="card-b form2">
+    <div><label class="lbl">${t('display_name')}</label><input type="text" name="customName" maxlength="32" value="${esc(st.customName || '')}"></div>
+    <div><label class="lbl">${t('mc_user')}</label><input type="text" name="mc" maxlength="16" class="ltr" value="${esc(mc.username || '')}" placeholder="Steve"></div>
+    <div class="full"><label class="lbl">${t('bio')}</label><textarea name="bio" rows="3" maxlength="500">${esc(st.bio || '')}</textarea></div>
+    ${['discord', 'youtube', 'github', 'website'].map(k => `<div><label class="lbl">${k[0].toUpperCase() + k.slice(1)}</label><input type="text" name="so_${k}" class="ltr" value="${esc(so[k] || '')}" placeholder="https://"></div>`).join('')}
+    <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>`);
+  $('#profF').onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    try {
+      await api('/api/user/settings', { method: 'PUT', body: { customName: f.customName.value.trim(), bio: f.bio.value, theme: st.theme || '', socials: Object.fromEntries(['discord', 'youtube', 'github', 'website'].map(k => [k, f['so_' + k].value.trim()])) } });
+      if (f.mc.value.trim() !== (mc.username || '')) await api('/api/me/minecraft', { method: 'PUT', body: { username: f.mc.value.trim() } });
+      toast(t('saved')); loadMe();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+};
+
+/* ---------- servers: add / edit my servers, reviews on the server page ---------- */
+const _vServers = vServers;
+vServers = async function (p, stale) {
+  await _vServers(p, stale);
+  if (stale()) return;
+  const head = view.querySelector('.head');
+  if (head) head.insertAdjacentHTML('beforeend', `<span class="spacer"></span>${S.me && S.me.user ? `<button class="btn lg" data-go="myservers">${ic('globe', 'sm')} ${t('my_servers')}</button>` : ''}<button class="btn primary lg" id="addSrv">${ic('plus', 'sm')} ${t('add_server')}</button>`);
+  const a = $('#addSrv'); if (a) a.onclick = async () => { if (!(S.me && S.me.user) && !(await doLogin())) return; go('srvedit', {}); };
+  bindCommon(view);
+};
+const _vServer = vServer;
+vServer = async function (params, stale) {
+  await _vServer(params, stale);
+  if (stale()) return;
+  view.querySelector('.view-in').insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:22px"><div class="card-h">${ic('star')}<h3>${t('reviews_t')}</h3></div><div class="card-b" id="sRev"></div></div>`);
+  reviewsCard($('#sRev'), '/api/servers/' + encodeURIComponent(params.slug));
+  api('/api/servers/' + encodeURIComponent(params.slug)).then(s => {
+    const h1 = view.querySelector('.srv-hero h1');
+    if (s.veteran && h1 && !view.querySelector('.vet')) h1.insertAdjacentHTML('afterend', `<span class="chip accent vet">${ic('crown', 'sm')} ${t('veteran')}</span>`);
+    if (s.canEdit) { const row = view.querySelector('.srv-hero .row:last-child'); if (row) { row.insertAdjacentHTML('beforeend', `<button class="btn" data-go="srvedit:slug:${esc(s.slug)}">${ic('edit', 'sm')} ${t('edit_server')}</button>`); bindCommon(row); } }
+  }).catch(() => { });
+};
+async function vMyServers(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const list = await api('/api/servers/mine');
+  if (stale()) return;
+  put(`<div class="head"><h1>${ic('globe', 'lg')} ${t('my_servers')}</h1><span class="spacer"></span><button class="btn primary lg" data-go="srvedit">${ic('plus', 'sm')} ${t('add_server')}</button></div>
+    <div class="stack" style="gap:10px">${list.map(s => `<div class="srv" data-go="srvedit:slug:${esc(s.slug)}">${pic(s)}<div class="body"><b>${esc(s.name)}</b><p class="mono ltr">${esc(s.address)}</p></div><span class="stat">${ic('star', 'sm')} ${fmtNum(s.votesMonth)}</span><span class="btn sm">${ic('edit', 'sm')} ${t('edit_server')}</span></div>`).join('') || emptyBox('globe', t('no_results'))}</div>`);
+}
+async function vSrvEdit(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const [s, all] = await Promise.all([p.slug ? api('/api/servers/' + encodeURIComponent(p.slug)) : Promise.resolve({ tags: [], votifier: { port: 8192 } }), api('/api/servers')]);
+  if (stale()) return;
+  const v = s.votifier || {}, sel = new Set(s.tags || []);
+  put(`<div class="head"><h1>${ic('globe', 'lg')} ${p.slug ? t('edit_server') : t('add_server')}</h1>${p.slug ? `<span class="spacer"></span><button class="btn lg" data-go="server:slug:${esc(p.slug)}">${ic('eye', 'sm')}</button>` : ''}</div>
+    <div class="play-layout"><form class="card" id="sF"><div class="card-b form2">
+      <div><label class="lbl">${t('name')}</label><input type="text" name="name" required maxlength="50" value="${esc(s.name || '')}"></div>
+      <div><label class="lbl">${t('server_address')}</label><input type="text" name="address" required class="ltr" value="${esc(s.address || '')}" placeholder="play.myserver.net"></div>
+      <div class="full"><label class="lbl">${t('srv_short')}</label><input type="text" name="short" maxlength="160" value="${esc(s.short || '')}"></div>
+      <div><label class="lbl">${t('srv_version')}</label><input type="text" name="version" value="${esc(s.version || '')}" placeholder="1.21.x"></div>
+      <div><label class="lbl">${t('srv_discord')}</label><input type="text" name="discord" class="ltr" value="${esc(s.discord || '')}" placeholder="https://discord.gg/..."></div>
+      <div class="full"><label class="lbl">${t('srv_website')}</label><input type="text" name="website" class="ltr" value="${esc(s.website || '')}" placeholder="https://"></div>
+      <div class="full"><label class="lbl">${t('tags')}</label><div class="chips" style="margin:0">${(all.tags || []).map(x => `<button type="button" class="${sel.has(x) ? 'on' : ''}" data-tag="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>
+      <div class="full"><label class="lbl">${t('srv_desc')}</label><textarea name="description" rows="8">${esc(s.description || '')}</textarea></div>
+      <div class="full"><h3 style="margin:6px 0 0">${t('votifier')}</h3></div>
+      <div><label class="lbl">${t('vf_host')}</label><input type="text" name="votifierHost" class="ltr" value="${esc(v.host || '')}"></div>
+      <div><label class="lbl">${t('vf_port')}</label><input type="text" name="votifierPort" class="ltr" value="${esc(v.port || 8192)}"></div>
+      <div class="full"><label class="lbl">${t('vf_key')}</label><textarea name="votifierKey" rows="3" class="ltr mono" style="font-size:12px">${esc(v.key || '')}</textarea></div>
+      <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>
+    <aside class="stack">${p.slug ? `<div class="card card-b stack" style="gap:10px"><button class="btn" id="sIc">${ic('image', 'sm')} ${t('upload_icon')}</button><button class="btn" id="sBn">${ic('image', 'sm')} ${t('upload_banner')}</button></div>
+      <div class="card card-b stack" style="gap:10px"><b>${t('test_vote')}</b><input type="text" id="tvN" class="ltr" placeholder="Steve"><button class="btn" id="tvB">${ic('send', 'sm')} ${t('send')}</button></div>
+      <button class="btn danger lg" id="sDel">${ic('trash', 'sm')} ${t('delete_server')}</button>` : ''}</aside></div>`);
+  view.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  $('#sF').onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    const body = Object.fromEntries(['name', 'address', 'short', 'version', 'discord', 'website', 'description', 'votifierHost', 'votifierPort', 'votifierKey'].map(k => [k, f[k].value.trim()]));
+    body.tags = [...view.querySelectorAll('[data-tag].on')].map(b => b.dataset.tag);
+    try { const r = await api(p.slug ? '/api/servers/' + encodeURIComponent(p.slug) : '/api/servers', { method: p.slug ? 'PUT' : 'POST', body }); toast(t('server_saved')); if (!p.slug) go('srvedit', { slug: r.slug }, true); }
+    catch (err) { toast(err.message, 'err'); }
+  };
+  if (!p.slug) return;
+  const img = [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }];
+  const up = kind => async () => { const r = await B.uploadFile({ apiPath: `/api/servers/${p.slug}/image/${kind}`, field: 'image', filters: img }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('saved')); };
+  $('#sIc').onclick = up('icon'); $('#sBn').onclick = up('banner');
+  $('#tvB').onclick = async () => { try { const r = await api(`/api/servers/${encodeURIComponent(p.slug)}/test-vote`, { method: 'POST', body: { username: $('#tvN').value.trim() } }); toast(r.ok ? t('test_ok') : (r.error || t('error')), r.ok ? '' : 'err'); } catch (err) { toast(err.message, 'err'); } };
+  $('#sDel').onclick = async () => { if (!confirm(t('confirm_delete', s.name))) return; try { await api('/api/servers/' + encodeURIComponent(p.slug), { method: 'DELETE' }); toast(t('deleted')); go('myservers', {}); } catch (err) { toast(err.message, 'err'); } };
+}
+
+/* ---------- routes + sidebar ---------- */
+const _go3 = go;
+go = function (route, params, noHistory) {
+  const fn = { following: vFollowing, studio: vStudio, apply: vApply, partners: vPartners, myservers: vMyServers, srvedit: vSrvEdit }[route];
+  if (!fn) return _go3(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && (S.route !== route || JSON.stringify(S.params) !== JSON.stringify(params))) S.history.push([S.route, S.params]);
+  S.route = route; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav(); view.scrollTop = 0; view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(fn(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _go3.seq;
+const _renderNav3 = renderNav;
+renderNav = function () {
+  _renderNav3();
+  const nav = $('#nav');
+  const r = { srvedit: 'servers', myservers: 'servers', apply: 'studio' }[S.route] || S.route;
+  // "upload project" opens the native studio now
+  const up = nav.querySelector('[data-sitewin^="/dashboard"]');
+  if (up) { const n = document.createElement('a'); n.href = '#'; n.dataset.go = 'studio'; n.className = r === 'studio' ? 'on' : ''; n.innerHTML = `${ic('box')} ${t('studio')}`; up.replaceWith(n); }
+  const creators = nav.querySelector('[data-go="creators"]');
+  if (creators) {
+    creators.insertAdjacentHTML('afterend', `${S.me && S.me.user ? `<a href="#" data-go="following" class="${r === 'following' ? 'on' : ''}">${ic('bell')} ${t('following_page')}</a>` : ''}<a href="#" data-go="partners" class="${r === 'partners' ? 'on' : ''}">${ic('handshake')} ${t('partners')}</a>`);
+  }
+  if (S.me && S.me.user && !nav.querySelector('[data-go="studio"]')) nav.insertAdjacentHTML('beforeend', `<a href="#" data-go="studio" class="${r === 'studio' ? 'on' : ''}">${ic('box')} ${t('studio')}</a>`);
+  nav.querySelectorAll('a').forEach(a => { a._b = 0; });
+  bindCommon(nav);
+};
 
 /* ---------- start ---------- */
 $('#backBtn').innerHTML = ic(flip());
@@ -961,3 +1258,191 @@ drawBell();
 go('home', {}, true);
 api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
 loadMe();
+
+/* ================= the whole admin panel inside the app ================= */
+Object.assign(I18N.he, {
+  a_tickets: 'טיקטים', a_staff: 'צוות', a_creators: 'קרייטורים', a_look: 'עיצוב', a_texts: 'טקסטים', a_partners: 'שותפים', a_limits: 'מגבלות', a_backups: 'גיבויים', a_settings: 'הגדרות',
+  perm_names: { 'tickets.view': 'צפייה בטיקטים', 'tickets.reply': 'מענה לטיקטים', 'tickets.manage': 'ניהול טיקטים', projects: 'פרויקטים ושרתים', creators: 'קרייטורים ומגבלות', content: 'תוכן ועיצוב', staff: 'צוות', settings: 'הגדרות' },
+  add_staff: 'הוספת איש צוות', staff_id: 'ID של דיסקורד או מייל', staff_title: 'תפקיד', show_team: 'להציג בדף הצוות', owner_badge: 'בעלים', remove: 'הסרה', owner_only: 'רק הבעלים יכול לתת',
+  recommend: 'מומלץ', revoke: 'הסרת תג קרייטור',
+  bg_url: 'תמונת רקע (קישור)', bg_dim: 'הכהיית הרקע', accent: 'צבע ראשי', announce_on: 'הצגת הודעה למעלה', announce_text: 'טקסט ההודעה', feat_tickets: 'טיקטים פעילים', feat_creators: 'הרשמה לקרייטורים', feat_downloads: 'הורדות פעילות',
+  t_title: 'שם', t_subtitle: 'תיאור ראשי', t_about: 'אודות', t_discord: 'קישור לדיסקורד', t_footer: 'טקסט תחתון', t_eyebrow: 'שורה קטנה', t_questions: 'שאלות לבקשת קרייטור (שאלה בכל שורה)', lang_he: 'עברית', lang_en: 'English',
+  partner_new: 'שותף חדש', p_name: 'שם', p_type: 'סוג', p_url: 'קישור', p_desc: 'תיאור', p_members: 'חברים', p_logo: 'לוגו', website: 'אתר', move_up: 'למעלה', move_down: 'למטה',
+  lim_defaults: 'ברירת מחדל', lim_file: 'גודל קובץ מקסימלי (MB)', lim_projects: 'פרויקטים למשתמש רגיל', lim_user: 'מגבלה אישית', lim_note: 'הערה', lim_list: 'מגבלות אישיות',
+  backup_now: 'גבה עכשיו', backups_sub: 'גיבוי אוטומטי כל יום — נשמרים {x} אחרונים', backup_done: 'הגיבוי נוצר ✓',
+  s_discord: 'Discord (התחברות ובוט)', s_google: 'Google', s_email: 'מייל (SMTP)', s_ai: 'עוזר AI', s_autoreply: 'מענה אוטומטי לטיקטים', client_id: 'Client ID', client_secret: 'Client Secret', bot_token: 'Bot Token', log_channel: 'ערוץ לוגים', secret_set: 'שמור ✓ — השאר ריק כדי לא לשנות', test_bot: 'בדיקת בוט',
+  smtp_host: 'שרת', smtp_port: 'פורט', smtp_user: 'משתמש', smtp_pass: 'סיסמת אפליקציה', smtp_from: 'שולח', ai_on: 'עוזר AI פעיל', ai_provider: 'ספק', ai_key: 'מפתח', ai_model: 'מודל', ai_instr: 'הוראות לעוזר', ar_on: 'מענה אוטומטי פעיל', ar_minutes: 'אחרי כמה דקות', ar_he: 'הודעה בעברית', ar_en: 'הודעה באנגלית', redirect_hint: 'כתובת Redirect להגדרה אצל הספק:'
+});
+Object.assign(I18N.en, {
+  a_tickets: 'Tickets', a_staff: 'Staff', a_creators: 'Creators', a_look: 'Appearance', a_texts: 'Texts', a_partners: 'Partners', a_limits: 'Limits', a_backups: 'Backups', a_settings: 'Settings',
+  perm_names: { 'tickets.view': 'View tickets', 'tickets.reply': 'Reply to tickets', 'tickets.manage': 'Manage tickets', projects: 'Projects & servers', creators: 'Creators & limits', content: 'Content & look', staff: 'Staff', settings: 'Settings' },
+  add_staff: 'Add staff member', staff_id: 'Discord ID or email', staff_title: 'Title', show_team: 'Show on the team page', owner_badge: 'Owner', remove: 'Remove', owner_only: 'Owner only',
+  recommend: 'Recommended', revoke: 'Remove creator badge',
+  bg_url: 'Background image (URL)', bg_dim: 'Background dim', accent: 'Accent color', announce_on: 'Show announcement', announce_text: 'Announcement text', feat_tickets: 'Tickets enabled', feat_creators: 'Creator applications', feat_downloads: 'Downloads enabled',
+  t_title: 'Name', t_subtitle: 'Headline', t_about: 'About', t_discord: 'Discord invite', t_footer: 'Footer', t_eyebrow: 'Small line', t_questions: 'Creator application questions (one per line)', lang_he: 'עברית', lang_en: 'English',
+  partner_new: 'New partner', p_name: 'Name', p_type: 'Type', p_url: 'Link', p_desc: 'Description', p_members: 'Members', p_logo: 'Logo', website: 'Website', move_up: 'Up', move_down: 'Down',
+  lim_defaults: 'Defaults', lim_file: 'Max file size (MB)', lim_projects: 'Projects per regular user', lim_user: 'Per-user limit', lim_note: 'Note', lim_list: 'Per-user limits',
+  backup_now: 'Back up now', backups_sub: 'Automatic daily backup — the last {x} are kept', backup_done: 'Backup created ✓',
+  s_discord: 'Discord (sign-in & bot)', s_google: 'Google', s_email: 'Email (SMTP)', s_ai: 'AI assistant', s_autoreply: 'Ticket auto-reply', client_id: 'Client ID', client_secret: 'Client Secret', bot_token: 'Bot Token', log_channel: 'Log channel', secret_set: 'Saved ✓ — leave empty to keep', test_bot: 'Test bot',
+  smtp_host: 'Host', smtp_port: 'Port', smtp_user: 'User', smtp_pass: 'App password', smtp_from: 'From', ai_on: 'AI assistant on', ai_provider: 'Provider', ai_key: 'Key', ai_model: 'Model', ai_instr: 'Assistant instructions', ar_on: 'Auto-reply on', ar_minutes: 'After minutes', ar_he: 'Hebrew message', ar_en: 'English message', redirect_hint: 'Redirect URL to set at the provider:'
+});
+const field = (label, html, full) => `<div class="${full ? 'full' : ''}"><label class="lbl">${label}</label>${html}</div>`;
+const inp = (name, value, extra = '') => `<input type="text" name="${name}" value="${esc(value == null ? '' : value)}" ${extra}>`;
+const toggle = (name, on, label) => `<div class="row full" style="gap:12px"><label class="tgl"><input type="checkbox" name="${name}" ${on ? 'checked' : ''}><span></span></label> ${label}</div>`;
+const secretInp = (name, isSet) => `<input type="password" name="${name}" placeholder="${isSet ? t('secret_set') : ''}" autocomplete="off" class="ltr">`;
+
+// the admin screen: every tab lives here now (the "advanced panel" web window is gone)
+vAdmin = async function (p, stale) {
+  const perms = (S.me && S.me.perms) || [];
+  if (!perms.length) return put(emptyBox('shield', t('no_access')));
+  if (p.tab) ADM_TAB = p.tab;
+  const tabs = [['overview', 'chart', null], ['tickets', 'ticket', 'tickets.view'], ['apps', 'badge', 'creators'], ['creators', 'users', 'creators'], ['projects', 'box', 'projects'], ['servers', 'globe', 'projects'],
+    ['updates', 'megaphone', 'content'], ['partners', 'handshake', 'content'], ['look', 'image', 'content'], ['texts', 'edit', 'content'], ['limits', 'tool', 'creators'], ['staff', 'shield', 'staff'],
+    ['backups', 'database', 'settings'], ['maint', 'tool', 'settings'], ['settings', 'settings', 'settings']].filter(x => !x[2] || perms.includes(x[2]));
+  if (!tabs.some(x => x[0] === ADM_TAB)) ADM_TAB = 'overview';
+  put(`<div class="head"><h1>${ic('shield', 'lg')} ${t('admin')}</h1></div>
+    <div class="adm-shell"><nav class="adm-nav">${tabs.map(([k, i]) => `<button data-atab="${k}" class="${k === ADM_TAB ? 'on' : ''}">${ic(i, 'sm')} ${t('a_' + k)}</button>`).join('')}</nav><div id="aBody" class="adm-body"><div class="spin"></div></div></div>`);
+  view.querySelectorAll('[data-atab]').forEach(b => b.onclick = () => { if (b.dataset.atab === 'tickets') { TK_SCOPE = 'all'; return go('support'); } ADM_TAB = b.dataset.atab; go('admin', {}, true); });
+  const body = $('#aBody');
+  const fn = { overview: aOverview, apps: aApps, creators: aCreators, projects: aProjects, servers: aServers, updates: aUpdates, partners: aPartners, look: aLook, texts: aTexts, limits: aLimits, staff: aStaff, backups: aBackups, maint: aMaint, settings: aSettings }[ADM_TAB];
+  try { await fn(body, stale); } catch (err) { if (!stale()) body.innerHTML = emptyBox('wifi', t('error'), err.message); }
+  bindCommon(body);
+};
+
+async function aCreators(body, stale) {
+  const list = await api('/api/creators');
+  if (stale()) return;
+  const draw = () => {
+    body.innerHTML = `<div class="card card-b">${list.map(c => `<div class="lrow big"><img class="av" src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt=""><div style="flex:1;min-width:0" data-go="user:id:${esc(c.id)}"><b>${esc(c.name)}</b><div class="faint">${fmtNum(c.projectCount)} ${t('projects')} · ${fmtNum(c.downloads)} ${t('downloads')} · ${fmtNum(c.followers || 0)} ${t('followers')}</div></div>
+      <button class="btn sm ${c.recommended ? 'primary' : ''}" data-rec="${esc(c.id)}">${ic('star', 'sm')} ${t('recommend')}</button><button class="icon-btn" data-rv="${esc(c.id)}" title="${t('revoke')}">${ic('trash', 'sm')}</button></div>`).join('') || emptyBox('users', t('no_results'))}</div>`;
+    body.querySelectorAll('[data-rec]').forEach(b => b.onclick = async () => { try { const r = await api(`/api/admin/creators/${encodeURIComponent(b.dataset.rec)}/recommend`, { method: 'POST', body: {} }); list.find(c => c.id === b.dataset.rec).recommended = r.recommended; draw(); } catch (e) { toast(e.message, 'err'); } });
+    body.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => { const c = list.find(x => x.id === b.dataset.rv); if (!confirm(t('confirm_delete', c.name))) return; try { await api('/api/admin/creators/' + encodeURIComponent(c.id), { method: 'DELETE' }); list.splice(list.indexOf(c), 1); draw(); toast(t('deleted')); } catch (e) { toast(e.message, 'err'); } });
+    bindCommon(body);
+  };
+  draw();
+}
+async function aStaff(body, stale) {
+  let d = await api('/api/admin/staff');
+  if (stale()) return;
+  const pn = I18N[LANG].perm_names;
+  const isOwner = S.me && S.me.isOwner;
+  const draw = () => {
+    body.innerHTML = `<form class="card" id="stF"><div class="card-h">${ic('plus')}<h3>${t('add_staff')}</h3></div><div class="card-b form2">
+        ${field(t('staff_id'), inp('id', '', 'class="ltr" required'))}${field(t('staff_title'), inp('title', ''))}
+        <div class="full perm-grid">${d.perms.map(pm => `<label class="perm"><input type="checkbox" name="perm" value="${pm}" ${d.ownerOnly.includes(pm) && !isOwner ? 'disabled' : ''}> ${esc(pn[pm] || pm)}${d.ownerOnly.includes(pm) ? ` <small class="faint">(${t('owner_only')})</small>` : ''}</label>`).join('')}</div>
+        ${toggle('team', true, t('show_team'))}<div class="full"><button class="btn primary lg">${ic('plus', 'sm')} ${t('add_staff')}</button></div></div></form>
+      <div class="stack" style="margin-top:18px">${[d.owner, ...d.staff].map(m => `<div class="card staff-card" data-id="${esc(m.id)}"><div class="card-h"><img class="av" src="${esc(siteImg(m.avatar) || m.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt=""><div style="flex:1;min-width:0"><b>${esc(m.name || m.id)}</b><div class="faint mono ltr" style="font-size:12px">${esc(m.id)}</div></div>${m.id === d.ownerId ? `<span class="chip accent">${ic('crown', 'sm')} ${t('owner_badge')}</span>` : `<button class="btn sm danger" data-rm="${esc(m.id)}">${t('remove')}</button>`}</div>
+        ${m.id === d.ownerId ? '' : `<div class="card-b"><div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:12px"><input type="text" class="st-title" value="${esc(m.title || '')}" placeholder="${t('staff_title')}" style="max-width:240px"><div class="row faint" style="gap:10px"><label class="tgl"><input type="checkbox" class="st-team" ${m.showOnTeam ? 'checked' : ''}><span></span></label> ${t('show_team')}</div></div>
+          <div class="perm-grid">${d.perms.map(pm => `<label class="perm"><input type="checkbox" class="st-perm" value="${pm}" ${m.perms.includes(pm) ? 'checked' : ''} ${d.ownerOnly.includes(pm) && !isOwner ? 'disabled' : ''}> ${esc(pn[pm] || pm)}</label>`).join('')}</div>
+          <button class="btn primary" data-save="${esc(m.id)}" style="margin-top:12px">${ic('check', 'sm')} ${t('save')}</button></div>`}</div>`).join('')}</div>`;
+    $('#stF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api('/api/admin/staff/' + encodeURIComponent(f.id.value.trim()), { method: 'PUT', body: { perms: [...f.querySelectorAll('[name=perm]:checked')].map(x => x.value), title: f.title.value.trim(), showOnTeam: f.team.checked } }); d = await api('/api/admin/staff'); toast(t('saved')); draw(); } catch (err) { toast(err.message, 'err'); } };
+    body.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => { const card = b.closest('.staff-card'); try { await api('/api/admin/staff/' + encodeURIComponent(b.dataset.save), { method: 'PUT', body: { perms: [...card.querySelectorAll('.st-perm:checked')].map(x => x.value), title: card.querySelector('.st-title').value.trim(), showOnTeam: card.querySelector('.st-team').checked } }); toast(t('saved')); } catch (err) { toast(err.message, 'err'); } });
+    body.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { if (!confirm(t('confirm_delete', b.dataset.rm))) return; try { await api('/api/admin/staff/' + encodeURIComponent(b.dataset.rm), { method: 'DELETE' }); d = await api('/api/admin/staff'); draw(); } catch (err) { toast(err.message, 'err'); } });
+  };
+  draw();
+}
+async function aLook(body, stale) {
+  const site = await api('/api/site');
+  if (stale()) return;
+  const a = site.appearance || {};
+  body.innerHTML = `<form class="card" id="lkF"><div class="card-b form2">
+    ${field(t('bg_url'), inp('backgroundUrl', a.backgroundUrl, 'class="ltr" placeholder="https://"'), true)}
+    ${field(t('bg_dim') + ` <b id="dimV">${a.backgroundDim ?? 70}%</b>`, `<input type="range" name="backgroundDim" min="0" max="95" value="${a.backgroundDim ?? 70}" style="accent-color:var(--accent)">`)}
+    ${field(t('accent'), `<input type="color" name="accentColor" value="${esc(a.accentColor || '#e3b341')}" style="height:48px;width:120px;padding:4px">`)}
+    ${toggle('announcementEnabled', a.announcementEnabled, t('announce_on'))}
+    ${field(t('announce_text'), inp('announcement', site.announcement), true)}
+    ${toggle('ticketsEnabled', a.ticketsEnabled !== false, t('feat_tickets'))}${toggle('creatorsEnabled', a.creatorsEnabled !== false, t('feat_creators'))}${toggle('downloadsEnabled', a.downloadsEnabled !== false, t('feat_downloads'))}
+    <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>`;
+  const f = $('#lkF');
+  f.backgroundDim.oninput = () => { $('#dimV').textContent = f.backgroundDim.value + '%'; };
+  f.onsubmit = async e => {
+    e.preventDefault();
+    try {
+      await api('/api/admin/appearance', { method: 'PUT', body: { backgroundUrl: f.backgroundUrl.value.trim(), backgroundDim: Number(f.backgroundDim.value), accentColor: f.accentColor.value, announcementEnabled: f.announcementEnabled.checked, ticketsEnabled: f.ticketsEnabled.checked, creatorsEnabled: f.creatorsEnabled.checked, downloadsEnabled: f.downloadsEnabled.checked } });
+      await api('/api/admin/site', { method: 'PUT', body: { lang: 'he', announcement: f.announcement.value } });
+      S.site = await api('/api/site'); applyAppearance(); toast(t('saved'));
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+let TX_LANG = 'he';
+async function aTexts(body, stale) {
+  const site = await api('/api/site');
+  if (stale()) return;
+  const src = TX_LANG === 'he' ? site : ((site.translations || {}).en || {});
+  body.innerHTML = `<div class="tabs" style="margin-bottom:14px"><button data-tl="he" class="${TX_LANG === 'he' ? 'on' : ''}">${t('lang_he')}</button><button data-tl="en" class="${TX_LANG === 'en' ? 'on' : ''}">${t('lang_en')}</button></div>
+    <form class="card" id="txF"><div class="card-b form2">
+      ${['title', 'eyebrow'].map(k => field(t('t_' + k), inp(k, src[k]))).join('')}
+      ${['subtitle', 'about', 'footer', 'announcement'].map(k => field(k === 'announcement' ? t('announce_text') : t('t_' + k), inp(k, src[k]), true)).join('')}
+      ${TX_LANG === 'he' ? field(t('t_discord'), inp('discordInvite', site.discordInvite, 'class="ltr"'), true) + field(t('t_questions'), `<textarea name="creatorQuestions" rows="6">${esc((site.creatorQuestions || []).join('\n'))}</textarea>`, true) : ''}
+      <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>`;
+  body.querySelectorAll('[data-tl]').forEach(b => b.onclick = () => { TX_LANG = b.dataset.tl; aTexts(body, stale); });
+  $('#txF').onsubmit = async e => { e.preventDefault(); const f = e.target; const data = { lang: TX_LANG }; for (const el of f.elements) if (el.name) data[el.name] = el.value; try { await api('/api/admin/site', { method: 'PUT', body: data }); S.site = await api('/api/site'); toast(t('saved')); } catch (err) { toast(err.message, 'err'); } };
+}
+async function aPartners(body, stale) {
+  let list = await api('/api/admin/partners');
+  if (stale()) return;
+  const draw = () => {
+    body.innerHTML = `<form class="card" id="paF"><div class="card-h">${ic('plus')}<h3>${t('partner_new')}</h3></div><div class="card-b form2">
+        ${field(t('p_name'), inp('name', '', 'required'))}${field(t('p_type'), `<select name="type"><option value="discord">Discord</option><option value="website">${t('website')}</option></select>`)}
+        ${field(t('p_url'), inp('url', '', 'class="ltr" required placeholder="https://"'), true)}${field(t('p_desc'), inp('description', ''), true)}${field(t('p_members'), inp('members', ''))}${field(t('p_logo'), inp('logo', '', 'class="ltr" placeholder="https://…png"'))}
+        <div class="full"><button class="btn primary lg">${ic('plus', 'sm')} ${t('partner_new')}</button></div></div></form>
+      <div class="card card-b" style="margin-top:18px">${list.map((x, i) => `<div class="lrow big"><div class="pic sm">${siteImg(x.logo) || /^https:/.test(x.logo || '') ? `<img src="${esc(siteImg(x.logo) || x.logo)}" alt="">` : esc(x.name.charAt(0))}</div><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> <span class="chip">${x.type === 'discord' ? 'Discord' : t('website')}</span><div class="faint ltr" style="font-size:12.5px">${esc(x.url)}</div></div>
+        <button class="icon-btn" data-up="${esc(x.id)}" ${i === 0 ? 'disabled' : ''} title="${t('move_up')}">▲</button><button class="icon-btn" data-dn="${esc(x.id)}" ${i === list.length - 1 ? 'disabled' : ''} title="${t('move_down')}">▼</button>
+        <button class="icon-btn" data-logo="${esc(x.id)}" title="${t('p_logo')}">${ic('image', 'sm')}</button><button class="btn sm ${x.visible === false ? 'danger' : ''}" data-vis="${esc(x.id)}">${ic(x.visible === false ? 'eyeoff' : 'eye', 'sm')}</button><button class="icon-btn" data-del="${esc(x.id)}">${ic('trash', 'sm')}</button></div>`).join('') || emptyBox('handshake', t('no_results'))}</div>`;
+    const reload = async () => { list = await api('/api/admin/partners'); draw(); };
+    $('#paF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api('/api/admin/partners', { method: 'POST', body: { name: f.name.value.trim(), type: f.type.value, url: f.url.value.trim(), description: f.description.value.trim(), members: f.members.value.trim(), logo: f.logo.value.trim() } }); toast(t('saved')); reload(); } catch (err) { toast(err.message, 'err'); } };
+    const act = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = async () => { try { await fn(b); reload(); } catch (err) { toast(err.message, 'err'); } });
+    act('[data-up]', b => api(`/api/admin/partners/${b.dataset.up}/move`, { method: 'POST', body: { dir: 'up' } }));
+    act('[data-dn]', b => api(`/api/admin/partners/${b.dataset.dn}/move`, { method: 'POST', body: { dir: 'down' } }));
+    act('[data-vis]', b => { const x = list.find(y => y.id === b.dataset.vis); return api('/api/admin/partners/' + x.id, { method: 'PUT', body: { visible: x.visible === false } }); });
+    act('[data-del]', async b => { if (confirm(t('confirm_delete', ''))) await api('/api/admin/partners/' + b.dataset.del, { method: 'DELETE' }); });
+    body.querySelectorAll('[data-logo]').forEach(b => b.onclick = async () => { const r = await B.uploadFile({ apiPath: `/api/admin/partners/${b.dataset.logo}/logo`, field: 'logo', filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('saved')); reload(); });
+  };
+  draw();
+}
+async function aLimits(body, stale) {
+  let d = await api('/api/admin/limits');
+  if (stale()) return;
+  const draw = () => {
+    body.innerHTML = `<div class="charts"><form class="card" id="lmD"><div class="card-h">${ic('tool')}<h3>${t('lim_defaults')}</h3></div><div class="card-b stack" style="gap:12px">${field(t('lim_file'), inp('defaultFileMB', d.defaultFileMB, 'class="ltr"'))}${field(t('lim_projects'), inp('freeProjects', d.freeProjects, 'class="ltr"'))}<button class="btn primary">${ic('check', 'sm')} ${t('save')}</button></div></form>
+      <form class="card" id="lmU"><div class="card-h">${ic('user')}<h3>${t('lim_user')}</h3></div><div class="card-b stack" style="gap:12px">${field(t('staff_id'), inp('id', '', 'class="ltr" required'))}<div class="row" style="gap:12px">${field(t('lim_file'), inp('fileMB', '', 'class="ltr"'))}${field(t('lim_projects'), inp('projects', '', 'class="ltr"'))}</div>${field(t('lim_note'), inp('note', ''))}<button class="btn primary">${ic('plus', 'sm')} ${t('save')}</button></div></form></div>
+      <div class="card"><div class="card-h">${ic('users')}<h3>${t('lim_list')}</h3></div><div class="card-b">${d.users.map(u => `<div class="lrow"><img class="av" src="${esc(siteImg(u.avatar) || u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt=""><div style="flex:1;min-width:0"><b>${esc(u.name || u.id)}</b><div class="faint">${u.fileMB != null ? u.fileMB + 'MB' : '—'} · ${u.projects != null ? u.projects : '∞'} ${t('projects')} ${u.note ? '· ' + esc(u.note) : ''}</div></div><button class="icon-btn" data-del="${esc(u.id)}">${ic('trash', 'sm')}</button></div>`).join('') || '<p class="faint">—</p>'}</div></div>`;
+    $('#lmD').onsubmit = async e => { e.preventDefault(); const f = e.target; try { d = await api('/api/admin/limits/default', { method: 'PUT', body: { defaultFileMB: f.defaultFileMB.value, freeProjects: f.freeProjects.value } }); toast(t('saved')); draw(); } catch (err) { toast(err.message, 'err'); } };
+    $('#lmU').onsubmit = async e => { e.preventDefault(); const f = e.target; try { d = await api('/api/admin/limits/user/' + encodeURIComponent(f.id.value.trim()), { method: 'PUT', body: { fileMB: f.fileMB.value, projects: f.projects.value, note: f.note.value } }); toast(t('saved')); draw(); } catch (err) { toast(err.message, 'err'); } };
+    body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { try { d = await api('/api/admin/limits/user/' + encodeURIComponent(b.dataset.del), { method: 'DELETE' }); draw(); } catch (err) { toast(err.message, 'err'); } });
+  };
+  draw();
+}
+async function aBackups(body, stale) {
+  const d = await api('/api/admin/backups');
+  if (stale()) return;
+  body.innerHTML = `<div class="card"><div class="card-h">${ic('database')}<h3>${t('a_backups')}</h3><span class="spacer"></span><button class="btn primary" id="bkNow">${ic('database', 'sm')} ${t('backup_now')}</button></div><div class="card-b"><p class="faint" style="margin:0 0 12px">${t('backups_sub', d.keep)}</p>
+    ${d.backups.map(b => `<div class="lrow"><span class="mono ltr" style="flex:1">${esc(b.name)}</span><span class="faint">${timeAgo(b.at)}</span><span class="chip">${fmtSize(b.size)}</span></div>`).join('') || '<p class="faint">—</p>'}</div></div>`;
+  $('#bkNow').onclick = async () => { $('#bkNow').disabled = true; try { await api('/api/admin/backups', { method: 'POST', body: {} }); toast(t('backup_done')); aBackups(body, stale); } catch (err) { toast(err.message, 'err'); $('#bkNow').disabled = false; } };
+}
+async function aSettings(body, stale) {
+  const c = await api('/api/admin/config');
+  if (stale()) return;
+  body.innerHTML = `<form id="cfgF" class="stack">
+    <div class="card"><div class="card-h">${ic('user')}<h3>${t('s_discord')}</h3><span class="spacer"></span><button type="button" class="btn sm" id="testBot">${t('test_bot')}</button></div><div class="card-b form2">
+      ${field(t('client_id'), inp('clientId', c.clientId, 'class="ltr"'))}${field(t('client_secret'), secretInp('clientSecret', c.clientSecretSet))}
+      ${field(t('bot_token'), secretInp('botToken', c.botTokenSet))}${field(t('log_channel'), inp('logChannelId', c.logChannelId, 'class="ltr"'))}
+      ${field('Redirect URI', inp('redirectUri', c.redirectUri, 'class="ltr"'), true)}</div></div>
+    <div class="card"><div class="card-h">${ic('globe')}<h3>${t('s_google')}</h3></div><div class="card-b form2">${field(t('client_id'), inp('googleClientId', c.googleClientId, 'class="ltr"'))}${field(t('client_secret'), secretInp('googleClientSecret', c.googleSecretSet))}<p class="faint full" style="margin:0;font-size:13px">${t('redirect_hint')} <span class="mono ltr">${esc(c.googleRedirect)}</span></p></div></div>
+    <div class="card"><div class="card-h">${ic('send')}<h3>${t('s_email')}</h3>${c.emailReady ? '<span class="chip accent">✓</span>' : ''}</div><div class="card-b form2">${field(t('smtp_host'), inp('smtpHost', c.smtpHost, 'class="ltr"'))}${field(t('smtp_port'), inp('smtpPort', c.smtpPort, 'class="ltr"'))}${field(t('smtp_user'), inp('smtpUser', c.smtpUser, 'class="ltr"'))}${field(t('smtp_pass'), secretInp('smtpPass', c.smtpPassSet))}${field(t('smtp_from'), inp('smtpFrom', c.smtpFrom, 'class="ltr"'), true)}</div></div>
+    <div class="card"><div class="card-h">${ic('sparkle')}<h3>${t('s_ai')}</h3></div><div class="card-b form2">${toggle('aiEnabled', c.aiEnabled, t('ai_on'))}
+      ${field(t('ai_provider'), `<select name="aiProvider"><option value="gemini" ${c.aiProvider !== 'anthropic' ? 'selected' : ''}>Gemini</option><option value="anthropic" ${c.aiProvider === 'anthropic' ? 'selected' : ''}>Claude</option></select>`)}
+      ${field('Gemini ' + t('ai_model'), `<select name="aiGeminiModel">${(c.geminiModels || []).map(m => `<option ${m === c.aiGeminiModel ? 'selected' : ''}>${m}</option>`).join('')}</select>`)}
+      ${field('Gemini ' + t('ai_key'), secretInp('aiGeminiKey', c.aiGeminiKeySet))}${field('Claude ' + t('ai_model'), `<select name="aiModel">${(c.aiModels || []).map(m => `<option ${m === c.aiModel ? 'selected' : ''}>${m}</option>`).join('')}</select>`)}
+      ${field('Claude ' + t('ai_key'), secretInp('aiKey', c.aiKeySet))}${field(t('ai_instr'), `<textarea name="aiInstructions" rows="4">${esc(c.aiInstructions || '')}</textarea>`, true)}</div></div>
+    <div class="card"><div class="card-h">${ic('clock')}<h3>${t('s_autoreply')}</h3></div><div class="card-b form2">${toggle('autoReplyEnabled', c.autoReplyEnabled, t('ar_on'))}${field(t('ar_minutes'), inp('autoReplyMinutes', c.autoReplyMinutes, 'class="ltr"'))}${field(t('ar_he'), `<textarea name="autoReplyHe" rows="3">${esc(c.autoReplyHe || '')}</textarea>`, true)}${field(t('ar_en'), `<textarea name="autoReplyEn" rows="3" class="ltr">${esc(c.autoReplyEn || '')}</textarea>`, true)}</div></div>
+    <button class="btn primary lg" style="align-self:flex-start">${ic('check', 'sm')} ${t('save')}</button></form>`;
+  $('#cfgF').onsubmit = async e => {
+    e.preventDefault(); const f = e.target, data = {};
+    for (const el of f.elements) { if (!el.name) continue; if (el.type === 'checkbox') data[el.name] = el.checked; else if (el.type === 'password') { if (el.value.trim()) data[el.name] = el.value.trim(); } else data[el.name] = el.value; }
+    try { await api('/api/admin/config', { method: 'PUT', body: data }); toast(t('saved')); aSettings(body, stale); } catch (err) { toast(err.message, 'err'); }
+  };
+  $('#testBot').onclick = async () => { try { const r = await api('/api/admin/config/test-bot', { method: 'POST', body: {} }); toast('✓ ' + ((r.bot && (r.bot.username || r.bot.name)) || 'OK')); } catch (err) { toast(err.message, 'err'); } };
+}
+// the "advanced panel" window is not used any more
+renderNav = (prev => function () { prev(); const x = $('#nav [data-sitewin]'); if (x) x.remove(); })(renderNav);

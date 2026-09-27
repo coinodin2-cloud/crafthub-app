@@ -152,6 +152,39 @@ ipcMain.handle('open-site-window', (e, p) => {
   return true;
 });
 
+
+// ---------- file uploads to crafthubs.net (projects, versions, icons, gallery, server images) ----------
+const UPLOAD_PATHS = /^\/api\/(studio\/draft|studio\/projects\/[a-z0-9-]+\/(version|icon|gallery)|servers\/[a-z0-9-]+\/image\/(icon|banner)|admin\/partners\/[a-f0-9]+\/logo)$/;
+function multipart(fields, file) {
+  const boundary = '----CraftHub' + Date.now().toString(16) + Math.random().toString(16).slice(2);
+  const parts = [];
+  for (const [k, v] of Object.entries(fields || {})) parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`, 'utf8'));
+  if (file) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${file.field}"; filename="${file.name.replace(/"/g, '')}"\r\nContent-Type: application/octet-stream\r\n\r\n`, 'utf8'));
+    parts.push(file.data, Buffer.from('\r\n'));
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`));
+  return { body: Buffer.concat(parts), type: `multipart/form-data; boundary=${boundary}` };
+}
+ipcMain.handle('upload-file', async (e, { apiPath, field = 'file', fields = {}, filters, title } = {}) => {
+  if (!trusted(e) || !UPLOAD_PATHS.test(String(apiPath))) return { status: 403, data: { error: 'forbidden' } };
+  const pick = await dialog.showOpenDialog(win, { title: title || 'Craft Hub', properties: ['openFile'], filters: Array.isArray(filters) ? filters : undefined });
+  if (pick.canceled || !pick.filePaths[0]) return { canceled: true };
+  const fp = pick.filePaths[0];
+  const size = fs.statSync(fp).size;
+  if (size > 500 * 1048576) return { status: 413, data: { error: 'הקובץ גדול מדי' } };
+  const mp = multipart(Object.fromEntries(Object.entries(fields).map(([k, v]) => [String(k), String(v)])), { field: String(field), name: path.basename(fp), data: fs.readFileSync(fp) });
+  return new Promise(resolve => {
+    const req = net.request({ method: 'POST', url: SITE + apiPath, useSessionCookies: true });
+    req.setHeader('X-Requested-With', 'fetch');
+    req.setHeader('Content-Type', mp.type);
+    req.on('response', res => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => { let data = null; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { } resolve({ status: res.statusCode, data, fileName: path.basename(fp) }); }); });
+    req.on('error', err => resolve({ status: 0, data: { error: err.message } }));
+    req.write(mp.body);
+    req.end();
+  });
+});
+
 // ---------- downloads ----------
 function download(url, dest, onProgress, redirects = 0) {
   return new Promise((resolve, reject) => {

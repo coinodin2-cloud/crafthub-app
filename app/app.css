@@ -359,3 +359,46 @@ textarea{padding:12px 14px!important;line-height:1.6}
 .maint-in h1{font-size:36px;margin-bottom:12px}
 .maint-in p{font-size:18px;color:var(--text-2);line-height:1.7;margin:0 0 26px}
 #maintStaffBar{display:flex;align-items:center;gap:10px;padding:10px 24px;background:rgba(239,90,90,.12);border-bottom:1px solid rgba(239,90,90,.35);color:#ffb4b4;font-weight:600}
+/* reviews */
+.rv-top{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.rv-avg{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:120px}
+.rv-avg b{font-size:44px;line-height:1}
+.rv-form{flex:1;min-width:280px;display:flex;flex-direction:column;gap:10px}
+.rv-form textarea{min-height:90px}
+.rv-list .rv{display:flex;gap:14px;padding:16px 0;border-top:1px solid var(--border)}
+.rv-list .rv:first-child{border-top:0}
+.rv-list .rv p{margin:8px 0 0;color:#ddd8cc;line-height:1.6;font-size:15px;white-space:pre-wrap}
+.stars-sm{color:var(--accent);letter-spacing:1px}
+.star-btn.on{color:var(--accent)}
+/* forms */
+.form2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form2 .full{grid-column:1/-1}
+@media (max-width:900px){.form2{grid-template-columns:1fr}}
+.chips button{height:36px;padding:0 14px;font-size:13.5px}
+/* studio */
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.type-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 18px;border-radius:18px;background:var(--raised);border:1px solid var(--border);color:var(--text);cursor:pointer;font:inherit;transition:.15s}
+.type-card:hover{border-color:var(--accent-line);transform:translateY(-2px)}
+.type-card b{font-size:18px}
+/* partners + team */
+.partners{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+.partner{display:flex;align-items:center;gap:16px;padding:20px;border-radius:18px;background:var(--raised);border:1px solid var(--border);cursor:pointer;transition:.15s}
+.partner:hover{border-color:var(--accent-line);transform:translateY(-2px)}
+.partner b{font-size:17px}
+.partner p{margin:6px 0;color:var(--text-2);font-size:14px;line-height:1.5}
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.tm{display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px;border-radius:18px;background:var(--raised);border:1px solid var(--border);cursor:pointer;text-align:center}
+.tm img{width:72px;height:72px;border-radius:50%;object-fit:cover}
+.tm b{font-size:16px}
+/* full admin inside the app */
+.adm-shell{display:grid;grid-template-columns:230px 1fr;gap:22px;align-items:start}
+.adm-nav{position:sticky;top:0;display:flex;flex-direction:column;gap:4px;padding:10px;background:var(--raised);border:1px solid var(--border);border-radius:16px}
+.adm-nav button{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border:0;border-radius:11px;background:none;color:var(--text-2);font:inherit;font-size:15px;font-weight:600;cursor:pointer;text-align:start}
+.adm-nav button:hover{background:var(--surface-2);color:var(--text)}
+.adm-nav button.on{background:var(--accent-soft);color:var(--accent)}
+.adm-body{min-width:0}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.perm{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2);cursor:pointer;font-size:14px}
+.perm input{accent-color:var(--accent);width:17px;height:17px}
+.staff-card .av{width:44px;height:44px}
+@media (max-width:900px){.adm-shell{grid-template-columns:1fr}.adm-nav{position:static;flex-direction:row;flex-wrap:wrap}}
