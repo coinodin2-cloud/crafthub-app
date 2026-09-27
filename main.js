@@ -354,7 +354,7 @@ ipcMain.on('notify', (e, n) => {
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.show(); win.focus();
-    if (n.link && /^\/[\w\-/?=&.%]*$/.test(n.link)) win.webContents.send('notif-click', n.link);
+    if (n.link && /^\/[\w\-/?=&.%:@]*$/.test(n.link)) win.webContents.send('notif-click', n.link);
   });
   note.show();
 });
@@ -436,6 +436,10 @@ function setupUpdates() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
-  app.whenReady().then(() => { createWindow(); setupUpdates(); });
+  app.whenReady().then(() => {
+    // YouTube's embedded player refuses pages without a referrer (ours are local files), so present the site as the referrer
+    session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*'] }, (d, cb) => { d.requestHeaders.Referer = SITE_ORIGIN + '/'; cb({ requestHeaders: d.requestHeaders }); });
+    createWindow(); setupUpdates();
+  });
   app.on('window-all-closed', () => app.quit());
 }

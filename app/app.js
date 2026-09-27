@@ -1088,6 +1088,7 @@ async function studioEdit(slug, stale) {
         <div><label class="lbl">${t('category')}</label><select name="category">${cats.map(c => `<option ${c === p.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
         <div class="full"><label class="lbl">${t('short')}</label><input type="text" name="short" maxlength="200" value="${esc(p.short || '')}"></div>
         <div class="full"><label class="lbl">${t('tags')}</label><input type="text" name="tags" value="${esc((p.tags || []).join(', '))}"></div>
+        <div class="full"><label class="lbl">${t('yt_video')}</label><input type="text" name="video" class="ltr" placeholder="https://www.youtube.com/watch?v=…" value="${esc(p.video || '')}"></div>
         <div class="full"><label class="lbl">${t('long')}</label><textarea name="description" rows="12">${esc(p.description || '')}</textarea></div>
         <label class="row full"><label class="tgl"><input type="checkbox" name="visible" ${p.visible !== false ? 'checked' : ''}><span></span></label> ${t('show_on')}</label>
         <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>
@@ -1096,7 +1097,7 @@ async function studioEdit(slug, stale) {
         <div class="card card-b stack" style="gap:10px"><button class="btn" id="icUp">${ic('image', 'sm')} ${t('change_icon')}</button><button class="btn" id="galUp">${ic('image', 'sm')} ${t('add_image')} (${(p.gallery || []).length}/8)</button></div>
         <button class="btn danger lg" id="delP">${ic('trash', 'sm')} ${t('delete_project')}</button>
       </aside></div>`);
-  $('#edF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api(base, { method: 'PUT', body: { name: f.name.value.trim(), category: f.category.value, short: f.short.value.trim(), tags: f.tags.value, description: f.description.value, visible: f.visible.checked } }); toast(t('saved')); S.projectsAt = 0; } catch (err) { toast(err.message, 'err'); } };
+  $('#edF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api(base, { method: 'PUT', body: { name: f.name.value.trim(), category: f.category.value, short: f.short.value.trim(), tags: f.tags.value, description: f.description.value, video: f.video.value.trim(), visible: f.visible.checked } }); toast(t('saved')); S.projectsAt = 0; } catch (err) { toast(err.message, 'err'); } };
   $('#nvUp').onclick = async () => { const r = await B.uploadFile({ apiPath: base + '/version', field: 'file', fields: { version: $('#nvVer').value.trim(), notes: $('#nvNotes').value }, filters: [{ name: typeName(p.type || 'plugin'), extensions: exts.map(x => x.replace('.', '')) }] }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('version_ok')); S.projectsAt = 0; go('studio', { slug }, true); };
   const img = [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }];
   $('#icUp').onclick = async () => { const r = await B.uploadFile({ apiPath: base + '/icon', field: 'icon', filters: img }); if (r.canceled) return; if (r.status !== 200) return toast(upErr(r), 'err'); toast(t('saved')); go('studio', { slug }, true); };
@@ -2230,10 +2231,12 @@ function footerHtml() {
 }
 new MutationObserver(() => {
   const v = view.querySelector(':scope > .view-in');
-  if (!v || v.querySelector(':scope > .app-foot')) return;
-  v.insertAdjacentHTML('beforeend', footerHtml());
-  bindCommon(v.querySelector(':scope > .app-foot'));
-}).observe(view, { childList: true });
+  if (!v) return;
+  const f = v.querySelector(':scope > .app-foot');
+  if (!f) { v.insertAdjacentHTML('beforeend', footerHtml()); bindCommon(v.querySelector(':scope > .app-foot')); }
+  // parts of a page that arrive later (reviews, graphs…) go above the footer
+  else if (v.lastElementChild !== f) v.appendChild(f);
+}).observe(view, { childList: true, subtree: true });
 
 // no copying: text can't be selected or dragged and there is no right-click menu (except in text fields)
 const editable = el => el && el.closest && el.closest('input, textarea, [contenteditable="true"]');
@@ -2254,6 +2257,303 @@ go = function (route, params, noHistory) {
   Promise.resolve(vLegal(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
 };
 go.seq = _goLegal.seq;
+
+/* ================= messages, what's new, vote reminders, video, similar, player graph, events, leaderboard, verified ================= */
+Object.assign(ICONS, {
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>',
+  play2: '<path d="M8 5v14l11-7Z"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  vcheck: '<path d="M12 2.5l2.3 1.7 2.9-.1.9 2.7 2.4 1.7-.9 2.7.9 2.7-2.4 1.7-.9 2.7-2.9-.1L12 21.5l-2.3-1.7-2.9.1-.9-2.7-2.4-1.7.9-2.7-.9-2.7 2.4-1.7.9-2.7 2.9.1Z" fill="currentColor" stroke="none"/><path d="m8.6 12.2 2.3 2.3 4.5-4.8" stroke="#fff" stroke-width="2.2"/>'
+});
+Object.assign(I18N.he, {
+  messages: 'הודעות', dm_empty: 'עוד אין שיחות — שלח הודעה לחבר מהפרופיל שלו', dm_pick: 'בחר שיחה', dm_ph: 'כתוב הודעה…', dm_send: 'שלח', dm_only_friends: 'אפשר לשלוח הודעות רק לחברים', dm_btn: 'הודעה', dm_new: 'הודעה חדשה מ-{x}',
+  wn_title: 'מה חדש ב-Craft Hub', wn_ok: 'מגניב!',
+  vr_ready: 'אפשר להצביע שוב ל-{x}', vr_go: 'להצבעה', vr_notif: '🗳️ אפשר להצביע שוב ל-{x}',
+  yt_video: 'סרטון יוטיוב (קישור)', yt_title: 'סרטון',
+  similar: 'אולי תאהב גם',
+  pg_title: 'שחקנים — 7 ימים אחרונים', pg_peak: 'שיא', pg_avg: 'ממוצע', pg_uptime: 'זמינות', pg_none: 'עוד אין נתונים — המדידה מתעדכנת כל 15 דקות', pg_offline: 'כבוי',
+  ev_title: 'אירועים', ev_upcoming: 'אירועים קרובים', ev_none: 'אין אירועים קרובים', ev_add: 'אירוע חדש', ev_name: 'שם האירוע', ev_when: 'מתי', ev_text: 'פרטים (לא חובה)', ev_live: 'עכשיו!', ev_in: 'בעוד {x}', ev_hint: 'מי שסימן את השרת כמועדף יקבל התראה, ותזכורת שעה לפני',
+  leaders: 'מובילים', lb_sub: 'הכי חמים החודש', lb_creators: 'קרייטורים — הורדות החודש', lb_projects: 'פרויקטים — הורדות החודש', lb_servers: 'שרתים — הצבעות החודש', lb_voters: 'מצביעים — החודש', lb_empty: 'עוד אין נתונים החודש',
+  verified: 'מאומת', verify_on: 'תן וי כחול', verify_off: 'הסר וי כחול'
+});
+Object.assign(I18N.en, {
+  messages: 'Messages', dm_empty: 'No conversations yet — message a friend from their profile', dm_pick: 'Pick a conversation', dm_ph: 'Write a message…', dm_send: 'Send', dm_only_friends: 'You can only message friends', dm_btn: 'Message', dm_new: 'New message from {x}',
+  wn_title: 'What\'s new in Craft Hub', wn_ok: 'Cool!',
+  vr_ready: 'You can vote again for {x}', vr_go: 'Vote', vr_notif: '🗳️ You can vote again for {x}',
+  yt_video: 'YouTube video (link)', yt_title: 'Video',
+  similar: 'You might also like',
+  pg_title: 'Players — last 7 days', pg_peak: 'Peak', pg_avg: 'Average', pg_uptime: 'Uptime', pg_none: 'No data yet — it is sampled every 15 minutes', pg_offline: 'Offline',
+  ev_title: 'Events', ev_upcoming: 'Upcoming events', ev_none: 'No upcoming events', ev_add: 'New event', ev_name: 'Event name', ev_when: 'When', ev_text: 'Details (optional)', ev_live: 'Now!', ev_in: 'in {x}', ev_hint: 'Everyone who favorited the server gets notified, plus a reminder an hour before',
+  leaders: 'Leaderboard', lb_sub: 'The hottest this month', lb_creators: 'Creators — downloads this month', lb_projects: 'Projects — downloads this month', lb_servers: 'Servers — votes this month', lb_voters: 'Voters — this month', lb_empty: 'No data this month yet',
+  verified: 'Verified', verify_on: 'Give blue check', verify_off: 'Remove blue check'
+});
+
+/* ---------- blue check next to verified names ---------- */
+const vcheck = () => `<span class="vcheck" title="${t('verified')}">${ic('vcheck', 'sm')}</span>`;
+const _projectCardV = projectCard;
+projectCard = function (p) { const h = _projectCardV(p); return p.owner && p.owner.verified ? h.replace(/(<div class="by">[^<]*)(<\/div>)/, `$1 ${vcheck()}$2`) : h; };
+const _personRowV = personRow;
+personRow = function (u, right) { const h = _personRowV(u, right); return u.verified ? h.replace('</b>', ` ${vcheck()}</b>`) : h; };
+
+/* ---------- private messages ---------- */
+let DM = { with: null, last: 0, timer: null, unread: 0 };
+async function vMessages(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  if (p.id) DM.with = p.id;
+  const list = await api('/api/dm').catch(() => []);
+  if (stale()) return;
+  put(`<div class="head"><h1>${ic('msg', 'lg')} ${t('messages')}</h1></div>
+    <div class="dm-shell"><aside class="card dm-list" id="dmList"></aside><section class="card dm-chat" id="dmChat"></section></div>`);
+  const drawList = l => {
+    $('#dmList').innerHTML = l.map(c => `<button class="dm-conv ${c.with.id === DM.with ? 'on' : ''}" data-c="${esc(c.with.id)}"><div class="av-wrap"><img class="av" src="${avatarOf(c.with)}" alt="">${c.with.online ? '<span class="online-dot abs"></span>' : ''}</div>
+      <div style="flex:1;min-width:0;text-align:start"><b>${esc(c.with.name)}${c.with.verified ? ' ' + vcheck() : ''}</b><small>${c.last.mine ? (LANG === 'he' ? 'אתה: ' : 'You: ') : ''}${esc(c.last.text)}</small></div>
+      ${c.unread ? `<span class="dm-badge">${c.unread}</span>` : `<small class="faint">${timeAgo(c.last.at)}</small>`}</button>`).join('') || `<p class="faint" style="padding:14px;margin:0">${t('dm_empty')}</p>`;
+    $('#dmList').querySelectorAll('[data-c]').forEach(b => b.onclick = () => { DM.with = b.dataset.c; go('messages', { id: DM.with }, true); });
+  };
+  drawList(list);
+  if (!DM.with && list[0]) DM.with = list[0].with.id;
+  const chat = $('#dmChat');
+  if (!DM.with) { chat.innerHTML = emptyBox('msg', t('dm_pick')); return; }
+  const d = await api('/api/dm/' + encodeURIComponent(DM.with)).catch(err => ({ error: err.message }));
+  if (stale()) return;
+  if (d.error) { chat.innerHTML = emptyBox('msg', d.error); return; }
+  const w = d.with;
+  chat.innerHTML = `<div class="dm-head" data-go="user:id:${esc(w.id)}"><img class="av" src="${avatarOf(w)}" alt=""><div><b>${esc(w.name)}${w.verified ? ' ' + vcheck() : ''}</b><small class="faint">${seenTxt(w)}</small></div></div>
+    <div class="dm-msgs" id="dmMsgs"></div>
+    ${d.friend === 'friends' ? `<form class="composer" id="dmF"><textarea name="text" rows="1" maxlength="2000" placeholder="${t('dm_ph')}"></textarea><button class="btn primary">${ic('send', 'sm')} ${t('dm_send')}</button></form>` : `<p class="faint" style="text-align:center;padding:12px;margin:0">${t('dm_only_friends')}</p>`}`;
+  bindCommon(chat);
+  const box = $('#dmMsgs');
+  let lastDay = '';
+  const add = ms => {
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    for (const m of ms) {
+      if (box.querySelector(`[data-m="${m.id}"]`)) continue;
+      const day = fmtDate(m.at);
+      if (day !== lastDay) { box.insertAdjacentHTML('beforeend', `<div class="dm-day">${day}</div>`); lastDay = day; }
+      box.insertAdjacentHTML('beforeend', `<div class="dm-msg ${m.mine ? 'mine' : ''}" data-m="${m.id}"><div class="bubble">${esc(m.text).replace(/\n/g, '<br>')}</div><small>${new Date(m.at).toLocaleTimeString(LANG === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</small></div>`);
+      DM.last = Math.max(DM.last, m.at);
+    }
+    if (atBottom || ms.some(m => m.mine)) box.scrollTop = box.scrollHeight;
+  };
+  DM.last = 0; add(d.messages); box.scrollTop = box.scrollHeight;
+  const f = $('#dmF');
+  if (f) {
+    const ta = f.text;
+    ta.focus();
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); f.requestSubmit(); } };
+    f.onsubmit = async e => { e.preventDefault(); const v = ta.value.trim(); if (!v) return; ta.value = ''; try { add([await api('/api/dm/' + encodeURIComponent(w.id), { method: 'POST', body: { text: v } })]); } catch (err) { ta.value = v; toast(err.message, 'err'); } };
+  }
+  clearInterval(DM.timer);
+  DM.timer = setInterval(async () => {
+    if (stale() || S.route !== 'messages') return clearInterval(DM.timer);
+    try { const n = await api(`/api/dm/${encodeURIComponent(w.id)}?since=${DM.last}`); if (n.messages.length) add(n.messages); drawList(await api('/api/dm')); } catch { }
+  }, 3000);
+}
+// unread counter on the sidebar + a desktop notification for new messages
+async function pollDms() {
+  if (!S.me || !S.me.user) return;
+  try {
+    const { unread } = await api('/api/dm/unread');
+    if (unread > DM.unread && S.route !== 'messages') {
+      const convs = await api('/api/dm').catch(() => []);
+      const c = convs.find(x => x.unread);
+      if (c) { if (document.hasFocus()) toast(t('dm_new', c.with.name) + ': ' + c.last.text.slice(0, 60)); else B.notify({ title: t('dm_new', c.with.name), body: c.last.text, link: '/messages/' + c.with.id }); }
+    }
+    DM.unread = unread;
+    const n = $('#nav [data-go="messages"] .nav-n'); if (n) n.textContent = unread || '';
+  } catch { }
+}
+setInterval(pollDms, 20000);
+
+/* ---------- what's new after an update ---------- */
+const CHANGELOG = [
+  { v: '1.11.0', items: ['💬 הודעות פרטיות בין חברים', '🗳️ תזכורת כשאפשר להצביע שוב לשרת', '🎬 סרטון יוטיוב בדף פרויקט', '✨ "אולי תאהב גם" — פרויקטים דומים', '📈 גרף שחקנים לכל שרת', '📅 אירועים לשרתים, עם תזכורות', '🏆 טבלת מובילים', '✔️ וי כחול לקרייטורים מאומתים'] }
+];
+const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+async function whatsNew() {
+  let cur;
+  try { cur = (await B.updateState()).current; } catch { return; }
+  if (!cur) return;
+  let seen = null; try { seen = localStorage.getItem('ch_seen_ver'); localStorage.setItem('ch_seen_ver', cur); } catch { return; }
+  if (!seen || !verGt(cur, seen)) return; // first install (the tour covers it) or nothing new
+  const items = CHANGELOG.filter(c => verGt(c.v, seen) && !verGt(c.v, cur)).flatMap(c => c.items);
+  if (!items.length) return;
+  const m = document.createElement('div'); m.className = 'modal-back';
+  m.innerHTML = `<div class="card wn-modal"><div class="tour-logo">${ic('sparkle', 'xl')}</div><h2>${t('wn_title')}</h2><span class="chip accent">v${esc(cur)}</span>
+    <ul class="wn-list">${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul><button class="btn primary lg" data-x>${t('wn_ok')}</button></div>`;
+  document.body.appendChild(m);
+  m.querySelector('[data-x]').onclick = () => m.remove();
+}
+
+/* ---------- vote reminders ---------- */
+let VOTES = [];
+async function checkVotes() {
+  if (!S.me || !S.me.user) return;
+  try { VOTES = await api('/api/me/votes'); } catch { return; }
+  const now = Date.now();
+  for (const v of VOTES) {
+    const key = 'ch_vr_' + v.slug + '_' + v.votedAt;
+    let done = false; try { done = !!localStorage.getItem(key); } catch { }
+    if (v.nextVoteAt <= now && !done) { try { localStorage.setItem(key, '1'); } catch { } B.notify({ title: 'Craft Hub', body: t('vr_notif', v.name), link: '/server/' + v.slug }); }
+  }
+  drawVoteBar();
+}
+function drawVoteBar() {
+  const ready = VOTES.filter(v => v.nextVoteAt <= Date.now());
+  const host = view.querySelector('.sh-stats');
+  const old = $('#voteBar'); if (old) old.remove();
+  if (!ready.length || !host || S.route !== 'home') return;
+  host.insertAdjacentHTML('afterend', `<div id="voteBar">${ready.slice(0, 3).map(v => `<div class="vote-rem"><div class="pic sm">${siteImg(v.icon) ? `<img src="${esc(siteImg(v.icon))}" alt="">` : esc(v.name.charAt(0))}</div><b style="flex:1">${esc(t('vr_ready', v.name))}</b><button class="btn primary" data-go="server:slug:${esc(v.slug)}">${ic('star', 'sm')} ${t('vr_go')}</button></div>`).join('')}</div>`);
+  bindCommon($('#voteBar'));
+}
+setInterval(checkVotes, 5 * 60000);
+const _vHomeV = vHome;
+vHome = async function (p, stale) { await _vHomeV(p, stale); if (!stale()) drawVoteBar(); };
+
+/* ---------- project page: video + similar projects ---------- */
+const ytId = u => (String(u || '').match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{6,20})/) || [])[1];
+const _vProjectV = vProject;
+vProject = async function (params, stale) {
+  await _vProjectV(params, stale);
+  if (stale() || !S.params.project) return;
+  const p = S.params.project, vin = view.querySelector('.view-in');
+  const id = ytId(p.video);
+  if (id && vin) {
+    const anchor = vin.querySelector('.phead');
+    const html = `<div class="card yt-card"><div class="card-h">${ic('play2')}<h3>${t('yt_title')}</h3></div><div class="yt-wrap" id="ytW"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt=""><button class="yt-play">${ic('play2', 'xl')}</button></div></div>`;
+    if (anchor) anchor.insertAdjacentHTML('afterend', html); else vin.insertAdjacentHTML('afterbegin', html);
+    $('#ytW').onclick = () => { $('#ytW').innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`; };
+  }
+  const all = await loadProjects();
+  if (stale()) return;
+  const tags = new Set(p.tags || []);
+  const score = x => ((x.type || 'plugin') === (p.type || 'plugin') ? 3 : 0) + (x.category === p.category ? 2 : 0) + (x.tags || []).filter(t2 => tags.has(t2)).length + (x.owner && p.owner && x.owner.id === p.owner.id ? 1 : 0);
+  const sim = all.filter(x => x.slug !== p.slug).map(x => ({ x, s: score(x) })).filter(o => o.s >= 3).sort((a, b) => b.s - a.s || (b.x.downloads || 0) - (a.x.downloads || 0)).slice(0, 4).map(o => o.x);
+  if (sim.length && vin) { vin.insertAdjacentHTML('beforeend', `<section class="section" style="margin-top:28px" id="simS"><div class="section-h">${ic('sparkle')}<h2>${t('similar')}</h2></div><div class="grid">${sim.map(projectCard).join('')}</div></section>`); bindCommon($('#simS')); }
+};
+
+/* ---------- server page: player graph + events ---------- */
+function playerChart(points) {
+  const W = 720, H = 180, P = 28;
+  if (!points.length) return '';
+  const t0 = points[0][0], t1 = points[points.length - 1][0] || t0 + 1, max = Math.max(4, ...points.map(p => p[1]));
+  const x = t => P + (t - t0) / Math.max(1, t1 - t0) * (W - P * 2), y = n => H - P - Math.max(0, n) / max * (H - P * 2);
+  let d = '', area = '', segStart = null;
+  const segs = [];
+  let cur = [];
+  for (const p of points) { if (p[1] < 0) { if (cur.length) segs.push(cur); cur = []; } else cur.push(p); }
+  if (cur.length) segs.push(cur);
+  for (const s of segs) {
+    d += s.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
+    area += `M${x(s[0][0]).toFixed(1)},${H - P}` + s.map(p => `L${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('') + `L${x(s[s.length - 1][0]).toFixed(1)},${H - P}Z`;
+  }
+  const days = []; for (let t = new Date(t0).setHours(0, 0, 0, 0) + 86400000; t < t1; t += 86400000) days.push(t);
+  return `<svg viewBox="0 0 ${W} ${H}" class="pchart" preserveAspectRatio="none">
+    <defs><linearGradient id="pgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${[0, .5, 1].map(f => `<line x1="${P}" x2="${W - P}" y1="${y(max * f)}" y2="${y(max * f)}" class="gl"/><text x="${P - 6}" y="${y(max * f) + 4}" class="gt" text-anchor="end">${Math.round(max * f)}</text>`).join('')}
+    ${days.map(t => `<line x1="${x(t)}" x2="${x(t)}" y1="${P}" y2="${H - P}" class="gl v"/><text x="${x(t)}" y="${H - 8}" class="gt" text-anchor="middle">${new Date(t).toLocaleDateString(LANG === 'he' ? 'he-IL' : 'en-US', { weekday: 'short' })}</text>`).join('')}
+    <path d="${area}" fill="url(#pgGrad)"/><path d="${d}" class="pl"/></svg>`;
+}
+const untilTxt = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} ${LANG === 'he' ? 'דק׳' : 'min'}` : m < 1440 ? `${Math.round(m / 60)} ${LANG === 'he' ? 'שע׳' : 'h'}` : `${Math.round(m / 1440)} ${LANG === 'he' ? 'ימים' : 'd'}`; };
+const eventRow = (e, canEdit, withServer) => { const now = Date.now(), live = e.startAt <= now;
+  return `<div class="ev ${live ? 'live' : ''}"><div class="ev-date"><b>${new Date(e.startAt).getDate()}</b><small>${new Date(e.startAt).toLocaleDateString(LANG === 'he' ? 'he-IL' : 'en-US', { month: 'short' })}</small></div>
+    <div style="flex:1;min-width:0"><b>${esc(e.title)}</b>${withServer ? ` <span class="faint">· <a href="#" data-go="server:slug:${esc(e.server.slug)}">${esc(e.server.name)}</a></span>` : ''}<div class="faint" style="font-size:13px">${new Date(e.startAt).toLocaleString(LANG === 'he' ? 'he-IL' : 'en-US', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}${e.text ? ' · ' + esc(e.text) : ''}</div></div>
+    <span class="chip ${live ? 'danger' : 'accent'}">${live ? t('ev_live') : t('ev_in', untilTxt(e.startAt - now))}</span>${canEdit ? `<button class="icon-btn" data-evdel="${e.id}">${ic('trash', 'sm')}</button>` : ''}</div>`; };
+const _vServerV = vServer;
+vServer = async function (params, stale) {
+  await _vServerV(params, stale);
+  if (stale()) return;
+  const vin = view.querySelector('.view-in'), slug = params.slug;
+  const [h, ev] = await Promise.all([api(`/api/servers/${encodeURIComponent(slug)}/history`).catch(() => null), api(`/api/servers/${encodeURIComponent(slug)}/events`).catch(() => null)]);
+  if (stale() || !vin) return;
+  const layout = vin.querySelector('.play-layout') || vin;
+  if (ev && (ev.events.length || ev.canEdit)) {
+    layout.insertAdjacentHTML('afterend', `<div class="card" style="margin-top:22px" id="evCard"><div class="card-h">${ic('cal')}<h3>${t('ev_title')}</h3></div><div class="card-b stack" style="gap:10px">
+      ${ev.events.map(e => eventRow(e, ev.canEdit)).join('') || `<p class="faint" style="margin:0">${t('ev_none')}</p>`}
+      ${ev.canEdit ? `<form id="evF" class="ev-form"><input type="text" name="title" maxlength="80" required placeholder="${t('ev_name')}"><input type="datetime-local" name="when" required><input type="text" name="text" maxlength="1000" placeholder="${t('ev_text')}"><button class="btn primary">${ic('plus', 'sm')} ${t('ev_add')}</button><small class="faint" style="grid-column:1/-1">${t('ev_hint')}</small></form>` : ''}</div></div>`);
+    bindCommon($('#evCard'));
+    const f = $('#evF');
+    if (f) f.onsubmit = async e => { e.preventDefault(); try { await api(`/api/servers/${encodeURIComponent(slug)}/events`, { method: 'POST', body: { title: f.title.value, text: f.text.value, startAt: new Date(f.when.value).getTime() } }); toast(t('saved')); go('server', { slug }, true); } catch (err) { toast(err.message, 'err'); } };
+    $('#evCard').querySelectorAll('[data-evdel]').forEach(b => b.onclick = async () => { try { await api(`/api/servers/${encodeURIComponent(slug)}/events/${b.dataset.evdel}`, { method: 'DELETE' }); go('server', { slug }, true); } catch (err) { toast(err.message, 'err'); } });
+  }
+  if (h) {
+    layout.insertAdjacentHTML('afterend', `<div class="card" style="margin-top:22px"><div class="card-h">${ic('chart')}<h3>${t('pg_title')}</h3><span class="spacer"></span>${h.points.length ? `<span class="chip">${t('pg_peak')}: ${h.peak}</span><span class="chip">${t('pg_avg')}: ${h.avg}</span>${h.uptime != null ? `<span class="chip accent">${t('pg_uptime')}: ${h.uptime}%</span>` : ''}` : ''}</div>
+      <div class="card-b">${h.points.length > 1 ? playerChart(h.points) : `<p class="faint" style="margin:0">${t('pg_none')}</p>`}</div></div>`);
+  }
+};
+// servers page: upcoming events across all servers
+const _vServersV = vServers;
+vServers = async function (p, stale) {
+  await _vServersV(p, stale);
+  if (stale()) return;
+  const list = await api('/api/events').catch(() => []);
+  const head = view.querySelector('.view-in > .head');
+  if (stale() || !list.length || !head) return;
+  head.insertAdjacentHTML('afterend', `<div class="card" style="margin-bottom:18px" id="evAll"><div class="card-h">${ic('cal')}<h3>${t('ev_upcoming')}</h3></div><div class="card-b stack" style="gap:10px">${list.slice(0, 5).map(e => eventRow(e, false, true)).join('')}</div></div>`);
+  bindCommon($('#evAll'));
+};
+
+/* ---------- leaderboard ---------- */
+async function vLeaders(p, stale) {
+  const d = await api('/api/leaderboard');
+  if (stale()) return;
+  const medal = i => ['🥇', '🥈', '🥉'][i] || `<span class="num">${i + 1}</span>`;
+  const board = (icon, title, rows) => `<div class="card lb"><div class="card-h">${ic(icon)}<h3>${title}</h3></div><div class="card-b">${rows || `<p class="faint" style="margin:0">${t('lb_empty')}</p>`}</div></div>`;
+  put(`<div class="head"><div><h1>${ic('trophy', 'lg')} ${t('leaders')}</h1><p class="faint" style="margin:6px 0 0">${t('lb_sub')}</p></div></div>
+    <div class="lb-grid">
+      ${board('crown', t('lb_creators'), d.creators.map((c, i) => `<div class="lrow lb-row" data-go="user:id:${esc(c.id)}"><span class="lb-m">${medal(i)}</span><img class="av" src="${avatarOf(c)}" alt=""><b style="flex:1;min-width:0">${esc(c.name)}${c.verified ? ' ' + vcheck() : ''}</b><span class="stat">${ic('download', 'sm')} ${fmtNum(c.downloads)}</span></div>`).join(''))}
+      ${board('box', t('lb_projects'), d.projects.map((x, i) => `<div class="lrow lb-row" data-go="project:slug:${esc(x.slug)}"><span class="lb-m">${medal(i)}</span>${pic(x, 'sm')}<b style="flex:1;min-width:0">${esc(x.name)}</b><span class="stat">${ic('download', 'sm')} ${fmtNum(x.monthDownloads)}</span></div>`).join(''))}
+      ${board('globe', t('lb_servers'), d.servers.map((s, i) => `<div class="lrow lb-row" data-go="server:slug:${esc(s.slug)}"><span class="lb-m">${medal(i)}</span><div class="pic sm">${siteImg(s.icon) ? `<img src="${esc(siteImg(s.icon))}" alt="">` : esc(s.name.charAt(0))}</div><b style="flex:1;min-width:0">${esc(s.name)}</b><span class="stat">${ic('star', 'sm')} ${fmtNum(s.votes)}</span></div>`).join(''))}
+      ${board('users', t('lb_voters'), d.voters.map((v, i) => `<div class="lrow lb-row"><span class="lb-m">${medal(i)}</span><img class="av" src="https://mc-heads.net/avatar/${encodeURIComponent(v.name)}/40" alt=""><b style="flex:1;min-width:0" class="mono">${esc(v.name)}</b><span class="stat">${ic('star', 'sm')} ${fmtNum(v.votes)}</span></div>`).join(''))}
+    </div>`);
+}
+
+/* ---------- profile: message button, blue check, verify toggle ---------- */
+const _vUserV = vUser;
+vUser = async function (params, stale) {
+  await _vUserV(params, stale);
+  if (stale()) return;
+  const x = await api('/api/users/' + encodeURIComponent(params.id) + '/extra').catch(() => null);
+  if (stale() || !x) return;
+  const h1 = view.querySelector('.phead h1');
+  if (x.verified && h1 && !h1.querySelector('.vcheck')) h1.insertAdjacentHTML('beforeend', ' ' + vcheck());
+  const me = S.me && S.me.user, mine = me && me.id === params.id;
+  const frB = $('#frB');
+  if (frB && x.friend === 'friends' && !$('#dmB')) { frB.insertAdjacentHTML('afterend', `<button class="btn primary" id="dmB">${ic('msg', 'sm')} ${t('dm_btn')}</button>`); $('#dmB').onclick = () => go('messages', { id: params.id }); }
+  if (me && !mine && hasPerm('creators') && x.friend !== undefined) {
+    const row = (frB && frB.parentElement) || view.querySelector('.phead');
+    row.insertAdjacentHTML('beforeend', `<button class="btn" id="vfB">${ic('vcheck', 'sm')} ${x.verified ? t('verify_off') : t('verify_on')}</button>`);
+    $('#vfB').onclick = async () => { try { await api('/api/admin/users/' + encodeURIComponent(params.id) + '/verify', { method: 'POST', body: {} }); S.projectsAt = 0; go('user', { id: params.id }, true); } catch (err) { toast(err.message, 'err'); } };
+  }
+};
+
+/* ---------- routes + sidebar ---------- */
+const _goS = go;
+go = function (route, params, noHistory) {
+  const fn = { messages: vMessages, leaders: vLeaders }[route];
+  if (!fn) return _goS(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && (S.route !== route || JSON.stringify(S.params) !== JSON.stringify(params))) S.history.push([S.route, S.params]);
+  S.route = route; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav(); view.scrollTop = 0; view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(fn(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _goS.seq;
+const _renderNavS = renderNav;
+renderNav = function () {
+  _renderNavS();
+  const nav = $('#nav');
+  const people = nav.querySelector('[data-go="people"]'), servers = nav.querySelector('[data-go="servers"]');
+  if (people && S.me && S.me.user && !nav.querySelector('[data-go="messages"]')) people.insertAdjacentHTML('afterend', `<a href="#" data-go="messages" class="${S.route === 'messages' ? 'on' : ''}">${ic('msg')} ${t('messages')}<span class="nav-n">${DM.unread || ''}</span></a>`);
+  if (servers && !nav.querySelector('[data-go="leaders"]')) servers.insertAdjacentHTML('afterend', `<a href="#" data-go="leaders" class="${S.route === 'leaders' ? 'on' : ''}">${ic('trophy')} ${t('leaders')}</a>`);
+  nav.querySelectorAll('[data-go="messages"], [data-go="leaders"]').forEach(a => { a._b = 0; });
+  bindCommon(nav);
+};
+// a notification about a message opens the chat
+const _openLinkS = openLink;
+openLink = function (l) { const m = String(l || '').match(/^\/messages\/([\w:.@-]+)/); if (m) return go('messages', { id: m[1] }); return _openLinkS(l); };
 
 /* ================= loader (like the site) + sign-out confirmation ================= */
 Object.assign(I18N.he, { lo_title: 'להתנתק?', lo_text: 'בטוח שאתה רוצה להתנתק מהחשבון?', lo_yes: 'כן, התנתק', lo_no: 'ביטול' });
@@ -2405,7 +2705,7 @@ go('home', {}, true);
 Promise.all([
   api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); }).catch(() => { }),
   loadMe()
-]).then(() => { if (['home', 'discover'].includes(S.route)) go(S.route, S.params, true); });
+]).then(() => { if (['home', 'discover'].includes(S.route)) go(S.route, S.params, true); whatsNew(); checkVotes(); pollDms(); });
 S.started = true;
 PL.timer = setTimeout(hideLoader, 1000);
 // first time in the app: the welcome + tour, after the loader is gone
