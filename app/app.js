@@ -80,7 +80,8 @@ async function api(path, opts = {}) {
   const r = await B.api(path, opts);
   if (r.status === 0) { setOffline(true); throw new Error('offline'); }
   setOffline(false);
-  if (r.status >= 400) throw Object.assign(new Error((r.data && r.data.error) || t('error')), { status: r.status, data: r.data });
+  // a 404 without a JSON error means the site runs an older server.js that doesn't have this endpoint yet
+  if (r.status >= 400) throw Object.assign(new Error((r.data && r.data.error) || (r.status === 404 ? (LANG === 'he' ? 'השרת לא מעודכן — הפיצ\'ר הזה עוד לא קיים בשרת' : 'The server is out of date — this feature is not on it yet') : t('error'))), { status: r.status, data: r.data });
   return r.data;
 }
 let offline = false;
