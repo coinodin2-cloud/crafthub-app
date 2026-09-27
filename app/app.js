@@ -2696,6 +2696,49 @@ vSettings = async function (p, stale) {
   if (v) { v.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:18px"><div class="card-h">${ic('sparkle')}<h3>${t('tr_card')}</h3><span class="spacer"></span><button class="btn" id="tourAgain">${ic('refresh', 'sm')} ${t('tr_replay')}</button></div></div>`); $('#tourAgain').onclick = () => startTour(); }
 };
 
+/* ================= sidebar: grouped and less crowded ================= */
+Object.assign(ICONS, { chev: '<path d="m6 9 6 6 6-6"/>' });
+Object.assign(I18N.he, { ng_community: 'קהילה', ng_mine: 'שלי', ng_more: 'עוד' });
+Object.assign(I18N.en, { ng_community: 'Community', ng_mine: 'Mine', ng_more: 'More' });
+const NAV_GROUPS = [
+  [null, ['home', 'discover', 'library', 'servers']],
+  ['ng_community', ['people', 'messages', 'creators', 'leaders']],
+  ['ng_mine', ['following', 'studio', 'support', 'admin']],
+  ['ng_more', ['partners', 'updates'], true]
+];
+let NAV_MORE_OPEN = false; try { NAV_MORE_OPEN = localStorage.getItem('ch_nav_more') === '1'; } catch { }
+const _renderNavG = renderNav;
+renderNav = function () {
+  _renderNavG();
+  const nav = $('#nav');
+  const links = {};
+  nav.querySelectorAll('a[data-go]').forEach(a => { links[a.dataset.go.split(':')[0]] = a; });
+  const placed = new Set(), frag = document.createDocumentFragment();
+  for (const [title, keys, collapsible] of NAV_GROUPS) {
+    const items = keys.map(k => links[k]).filter(Boolean);
+    if (!items.length) continue;
+    const g = document.createElement('div'); g.className = 'nav-g';
+    const open = !collapsible || NAV_MORE_OPEN || items.some(a => a.classList.contains('on'));
+    if (title) {
+      const h = document.createElement(collapsible ? 'button' : 'div');
+      h.className = 'nav-h' + (collapsible ? ' tog' : '') + (open ? ' open' : '');
+      h.innerHTML = `${t(title)}${collapsible ? ic('chev', 'sm') : ''}`;
+      if (collapsible) h.onclick = () => { NAV_MORE_OPEN = !g.classList.contains('open'); try { localStorage.setItem('ch_nav_more', NAV_MORE_OPEN ? '1' : '0'); } catch { } g.classList.toggle('open', NAV_MORE_OPEN); h.classList.toggle('open', NAV_MORE_OPEN); };
+      g.appendChild(h);
+    }
+    const box = document.createElement('div'); box.className = 'nav-items';
+    items.forEach(a => { box.appendChild(a); placed.add(a); });
+    g.appendChild(box);
+    if (collapsible) g.classList.add('coll');
+    g.classList.toggle('open', open);
+    frag.appendChild(g);
+  }
+  // anything not in a group (future items) goes to the end of the first group
+  nav.querySelectorAll('a[data-go]').forEach(a => { if (!placed.has(a)) frag.firstChild.querySelector('.nav-items').appendChild(a); });
+  nav.innerHTML = '';
+  nav.appendChild(frag);
+};
+
 /* ================= start ================= */
 // runs last, so every view above is the newest version. Start right away; account and site info arrive in the background,
 // then the first screen is drawn again with them (home background, staff buttons).

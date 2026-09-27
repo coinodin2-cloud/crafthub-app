@@ -653,3 +653,27 @@ h1 .vcheck .i{width:26px;height:26px}
 .lb-m{width:30px;text-align:center;font-size:20px}
 @media (max-width:1000px){.dm-shell,.lb-grid{grid-template-columns:1fr}.ev-form{grid-template-columns:1fr}}
 input[type="datetime-local"],input[type="date"],input[type="time"]{color-scheme:dark}
+/* sidebar: grouped, calmer */
+#nav{gap:0;overflow-y:auto;min-height:0;flex:1 1 auto;padding-bottom:6px;scrollbar-width:thin}
+#nav .nav-g{display:flex;flex-direction:column}
+#nav .nav-g+.nav-g{margin-top:14px}
+#nav .nav-items{display:flex;flex-direction:column;gap:2px}
+#nav a{height:42px;padding:0 14px;border-radius:11px;font-size:15px;gap:12px}
+#nav a .i{width:19px;height:19px}
+.nav-h{display:flex;align-items:center;justify-content:space-between;padding:0 14px 6px;font-size:11.5px;font-weight:800;letter-spacing:.05em;color:var(--text-3);text-transform:uppercase}
+button.nav-h{width:100%;border:0;background:none;font-family:inherit;cursor:pointer;padding-top:4px;border-radius:8px}
+button.nav-h:hover{color:var(--text-2)}
+button.nav-h .i{width:15px;height:15px;transition:transform .2s}
+button.nav-h.open .i{transform:rotate(180deg)}
+#nav .nav-g.coll .nav-items{display:none}
+#nav .nav-g.coll.open .nav-items{display:flex}
+#side{display:flex;flex-direction:column;min-height:0}
+#nav{-webkit-app-region:no-drag}
+#nav a{height:38px}
+#nav .nav-g+.nav-g{margin-top:10px}
+.nav-h{padding-bottom:4px}
+#nav::-webkit-scrollbar{width:5px}
+#nav::-webkit-scrollbar-track{background:transparent}
+#nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+#nav:not(:hover)::-webkit-scrollbar-thumb{background:transparent}
+#nav{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
