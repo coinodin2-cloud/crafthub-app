@@ -1379,7 +1379,7 @@ async function aTexts(body, stale) {
     <form class="card" id="txF"><div class="card-b form2">
       ${['title', 'eyebrow'].map(k => field(t('t_' + k), inp(k, src[k]))).join('')}
       ${['subtitle', 'about', 'footer', 'announcement'].map(k => field(k === 'announcement' ? t('announce_text') : t('t_' + k), inp(k, src[k]), true)).join('')}
-      ${TX_LANG === 'he' ? field(t('t_discord'), inp('discordInvite', site.discordInvite, 'class="ltr"'), true) + field(t('t_questions'), `<textarea name="creatorQuestions" rows="6">${esc((site.creatorQuestions || []).join('\n'))}</textarea>`, true) : ''}
+      ${TX_LANG === 'he' ? field(t('t_discord'), inp('discordInvite', site.discordInvite, 'class="ltr"'), true) + field(t('t_questions'), `<textarea name="creatorQuestions" rows="6">${esc((site.creatorQuestions || []).join('\n'))}</textarea>`, true) + field(t('t_credits'), `<textarea name="credits" rows="5" placeholder="${esc(t('t_credits_ph'))}">${esc(site.credits || '')}</textarea>`, true) : ''}
       <div class="full"><button class="btn primary lg">${ic('check', 'sm')} ${t('save')}</button></div></div></form>`;
   body.querySelectorAll('[data-tl]').forEach(b => b.onclick = () => { TX_LANG = b.dataset.tl; aTexts(body, stale); });
   $('#txF').onsubmit = async e => { e.preventDefault(); const f = e.target; const data = { lang: TX_LANG }; for (const el of f.elements) if (el.name) data[el.name] = el.value; try { await api('/api/admin/site', { method: 'PUT', body: data }); S.site = await api('/api/site'); toast(t('saved')); } catch (err) { toast(err.message, 'err'); } };
@@ -2161,6 +2161,100 @@ api = async function (path, opts) {
   catch (err) { if (err.status === 403 && err.data && err.data.banned && err.data.banned.full) showBanScreen(err.data.banned); throw err; }
 };
 
+/* ================= credits + copyright page, footer with Discord, copy protection ================= */
+Object.assign(ICONS, { discord: '<path d="M8.5 7.5c2.3-.7 4.7-.7 7 0M8.2 16.6c2.4.9 5.2.9 7.6 0M7.4 6.3 6 4.8C4.3 5.2 3 6 3 6 1.4 9.3 1.2 12.6 1.6 16c1.8 1.4 3.6 2.2 5.4 2.7l1.1-1.9m7.8-10.5L17.4 4.8c1.7.4 3 1.2 3 1.2 1.6 3.3 1.8 6.6 1.4 10-1.8 1.4-3.6 2.2-5.4 2.7l-1.1-1.9"/><circle cx="9" cy="12.2" r="1.3"/><circle cx="15" cy="12.2" r="1.3"/>' });
+Object.assign(I18N.he, {
+  legal: 'קרדיטים וזכויות', lg_credits: 'קרדיטים', lg_copyright: 'זכויות יוצרים', lg_team: 'הצוות', lg_thanks: 'תודה מיוחדת', lg_thanks_text: 'לכל {x} הקרייטורים שמעלים תוכן, ולכל הקהילה שמורידה, מדרגת ועוזרת לנו להשתפר 💛',
+  lg_built: 'נבנה בעזרת', lg_license: 'רישיון', lg_version: 'גרסת האפליקציה', lg_updated: 'עודכן לאחרונה: 27.9.2026',
+  t_credits: 'שמות נוספים בדף הקרדיטים (שורה לכל אחד: שם — תפקיד)', t_credits_ph: 'NOAM2509_S — פיתוח',
+  ft_join: 'הצטרפו לשרת הדיסקורד שלנו', ft_join_sub: 'עדכונים, תמיכה, הגרלות ואנשים שאוהבים מיינקראפט', ft_btn: 'הצטרפות לדיסקורד', ft_rights: '© {x} Craft Hub · כל הזכויות שמורות', ft_mc: 'לא מוצר רשמי של Minecraft. לא מאושר על ידי Mojang או Microsoft ואינו קשור אליהן.',
+  cp: [
+    ['בעלות', 'האפליקציה Craft Hub, האתר crafthubs.net, העיצוב, הקוד, הלוגו, השם "Craft Hub", הטקסטים והגרפיקה — שייכים ל-Craft Hub. כל הזכויות שמורות.'],
+    ['התוכן של הקרייטורים', 'כל פרויקט (פלאגין, מוד, טקסטורה, שיידר, מפה וכו\') שייך לקרייטור שהעלה אותו. בהעלאה, הקרייטור מאשר ל-Craft Hub להציג ולהפיץ את התוכן באפליקציה ובאתר בלבד, ומצהיר שיש לו את כל הזכויות עליו.'],
+    ['מה אסור', '• להעתיק, לשכפל, להפיץ, למכור או לפרסם מחדש תוכן, עיצוב או קוד מ-Craft Hub בלי אישור בכתב.\n• להעלות תוכן של מישהו אחר כאילו הוא שלך, או בלי רשות היוצר.\n• להוריד פרויקטים מ-Craft Hub ולהעלות אותם מחדש לאתר אחר בלי רשות היוצר.\n• לעשות הנדסה לאחור (Reverse Engineering) לאפליקציה, לפרוץ, או לעקוף הגנות והגבלות.\n• לאסוף מידע או תוכן בצורה אוטומטית (בוטים, Scraping).\n• להשתמש בשם, בלוגו או בעיצוב של Craft Hub בלי אישור.'],
+    ['דיווח על הפרה', 'חושב שמישהו העלה תוכן שלך בלי רשות? פתח טיקט מסוג "דיווח" (או לחץ על 🚩 בדף הפרויקט) וצרף הוכחה שהתוכן שלך. נבדוק ונסיר תוכן מפר בהקדם.'],
+    ['מה קורה למי שמפר', 'התוכן המפר יוסר. בנוסף — לפי חומרת המקרה — אזהרה, השעיה, באן לצמיתות מ-Craft Hub, ובמקרים חמורים גם צעדים משפטיים.'],
+    ['מיינקראפט', 'Craft Hub אינו מוצר רשמי של Minecraft, ואינו מאושר על ידי Mojang או Microsoft או קשור אליהן. "Minecraft" הוא סימן מסחרי של Mojang AB.'],
+    ['שינויים', 'אנחנו רשאים לעדכן את הסעיפים האלה מדי פעם. המשך שימוש ב-Craft Hub אחרי עדכון מהווה הסכמה לסעיפים המעודכנים.']
+  ]
+});
+Object.assign(I18N.en, {
+  legal: 'Credits & rights', lg_credits: 'Credits', lg_copyright: 'Copyright', lg_team: 'The team', lg_thanks: 'Special thanks', lg_thanks_text: 'To all {x} creators who share their work, and to the whole community that downloads, rates and helps us improve 💛',
+  lg_built: 'Built with', lg_license: 'License', lg_version: 'App version', lg_updated: 'Last updated: Sep 27, 2026',
+  t_credits: 'Extra names on the credits page (one per line: name — role)', t_credits_ph: 'NOAM2509_S — development',
+  ft_join: 'Join our Discord server', ft_join_sub: 'Updates, support, giveaways and people who love Minecraft', ft_btn: 'Join Discord', ft_rights: '© {x} Craft Hub · All rights reserved', ft_mc: 'Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.',
+  cp: [
+    ['Ownership', 'The Craft Hub app, the crafthubs.net site, the design, code, logo, the "Craft Hub" name, texts and graphics belong to Craft Hub. All rights reserved.'],
+    ['Creators\' content', 'Every project (plugin, mod, texture pack, shader, map, etc.) belongs to the creator who uploaded it. By uploading, the creator lets Craft Hub show and distribute it in the app and on the site only, and declares they hold all rights to it.'],
+    ['What is not allowed', '• Copying, duplicating, distributing, selling or republishing content, design or code from Craft Hub without written permission.\n• Uploading someone else\'s content as your own, or without the creator\'s permission.\n• Downloading projects from Craft Hub and re-uploading them elsewhere without the creator\'s permission.\n• Reverse engineering the app, hacking it, or bypassing protections and limits.\n• Automated collection of data or content (bots, scraping).\n• Using the Craft Hub name, logo or design without permission.'],
+    ['Reporting infringement', 'Think someone uploaded your work without permission? Open a "report" ticket (or press 🚩 on the project page) with proof that it is yours. We will review it and remove infringing content quickly.'],
+    ['Consequences', 'Infringing content is removed. Depending on severity: a warning, a suspension, a permanent ban from Craft Hub, and in serious cases legal action.'],
+    ['Minecraft', 'Craft Hub is not an official Minecraft product and is not approved by or associated with Mojang or Microsoft. "Minecraft" is a trademark of Mojang AB.'],
+    ['Changes', 'We may update these terms from time to time. Continuing to use Craft Hub after an update means you accept them.']
+  ]
+});
+const DISCORD_FALLBACK = 'https://discord.gg/ZW4uCt4yQ';
+const discordLink = () => (S.site && /^https:\/\//.test(S.site.discordInvite || '') ? S.site.discordInvite : DISCORD_FALLBACK);
+const BUILT_WITH = [['Electron', 'MIT'], ['Node.js', 'MIT'], ['Express', 'MIT'], ['electron-updater', 'MIT'], ['adm-zip', 'MIT'], ['multer', 'MIT'], ['Nodemailer', 'MIT-0'], ['Heebo · Cinzel · JetBrains Mono', 'SIL OFL 1.1']];
+let LEGAL_TAB = 'credits';
+async function vLegal(p, stale) {
+  if (p.tab) LEGAL_TAB = p.tab;
+  put(`<div class="head"><div><h1>${ic('shield', 'lg')} ${t('legal')}</h1></div></div>
+    <div class="tabs big" style="margin-bottom:20px"><button data-lt="credits" class="${LEGAL_TAB === 'credits' ? 'on' : ''}">${ic('star', 'sm')} ${t('lg_credits')}</button><button data-lt="copyright" class="${LEGAL_TAB === 'copyright' ? 'on' : ''}">${ic('lock', 'sm')} ${t('lg_copyright')}</button></div>
+    <div id="lgBody"><div class="spin"></div></div>`);
+  view.querySelectorAll('[data-lt]').forEach(b => b.onclick = () => go('legal', { tab: b.dataset.lt }, true));
+  const body = $('#lgBody');
+  if (LEGAL_TAB === 'copyright') {
+    body.innerHTML = `<article class="card card-b legal-doc">${I18N[LANG].cp.map(([h, txt], i) => `<section><h3><span class="num">${i + 1}</span>${esc(h)}</h3><p>${esc(txt).replace(/\n/g, '<br>')}</p></section>`).join('')}<p class="faint" style="font-size:12.5px;margin:18px 0 0">${t('lg_updated')}</p></article>`;
+    return;
+  }
+  const [team, creators, st] = await Promise.all([api('/api/team').catch(() => []), api('/api/creators').catch(() => []), B.updateState().catch(() => ({}))]);
+  if (stale()) return;
+  const extra = String((S.site && S.site.credits) || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split(/\s+[—-]\s+/); return { name: n, role: r.join(' — ') }; });
+  body.innerHTML = `
+    <section class="card credits-hero"><div class="sh-mark">${ic('grid')}</div><h2>Craft Hub</h2><p class="faint">${esc(S.site.subtitle || '')}</p>${st.current ? `<span class="chip">${t('lg_version')} v${esc(st.current)}</span>` : ''}</section>
+    ${team.length || extra.length ? `<h3 class="sec-t">${ic('users', 'sm')} ${t('lg_team')}</h3><div class="credit-grid">
+      ${team.map(m => `<div class="credit" data-go="user:id:${esc(m.id)}"><img src="${esc(siteImg(m.avatar) || m.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">${m.owner ? `<span class="credit-crown">${ic('crown', 'sm')}</span>` : ''}<b>${esc(m.name)}</b><small>${esc(m.title || (m.owner ? (LANG === 'he' ? 'מייסד' : 'Founder') : ''))}</small></div>`).join('')}
+      ${extra.map(x => `<div class="credit"><div class="credit-av">${esc(x.name.charAt(0))}</div><b>${esc(x.name)}</b><small>${esc(x.role)}</small></div>`).join('')}</div>` : ''}
+    <h3 class="sec-t">${ic('heart', 'sm')} ${t('lg_thanks')}</h3><div class="card card-b"><p style="margin:0;font-size:15.5px">${t('lg_thanks_text', fmtNum(creators.length))}</p>
+      ${creators.length ? `<div class="credit-avs">${creators.slice(0, 24).map(c => `<img src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt="" title="${esc(c.name)}" data-go="user:id:${esc(c.id)}">`).join('')}</div>` : ''}</div>
+    <h3 class="sec-t">${ic('tool', 'sm')} ${t('lg_built')}</h3><div class="card card-b">${BUILT_WITH.map(([n, l]) => `<div class="lrow"><b style="flex:1">${n}</b><span class="chip">${t('lg_license')}: ${l}</span></div>`).join('')}</div>`;
+  bindCommon(body);
+}
+
+// the bottom of every page: Discord button, rights, links
+function footerHtml() {
+  return `<footer class="app-foot"><div class="foot-dc"><span class="foot-dc-ic">${ic('discord', 'lg')}</span><div style="flex:1;min-width:0"><b>${t('ft_join')}</b><small>${t('ft_join_sub')}</small></div><button class="btn dc lg" data-ext="${esc(discordLink())}">${ic('discord', 'sm')} ${t('ft_btn')}</button></div>
+    <div class="foot-row"><span>${t('ft_rights', new Date().getFullYear())}</span><span class="spacer"></span><a href="#" data-go="legal:tab:credits">${t('lg_credits')}</a><a href="#" data-go="legal:tab:copyright">${t('lg_copyright')}</a><a href="#" data-ext="${esc(discordLink())}">Discord</a></div>
+    <p class="foot-mc">${t('ft_mc')}</p></footer>`;
+}
+new MutationObserver(() => {
+  const v = view.querySelector(':scope > .view-in');
+  if (!v || v.querySelector(':scope > .app-foot')) return;
+  v.insertAdjacentHTML('beforeend', footerHtml());
+  bindCommon(v.querySelector(':scope > .app-foot'));
+}).observe(view, { childList: true });
+
+// no copying: text can't be selected or dragged and there is no right-click menu (except in text fields)
+const editable = el => el && el.closest && el.closest('input, textarea, [contenteditable="true"]');
+document.addEventListener('contextmenu', e => { if (!editable(e.target)) e.preventDefault(); });
+document.addEventListener('dragstart', e => { if (!editable(e.target)) e.preventDefault(); });
+document.addEventListener('copy', e => { if (!editable(document.activeElement)) e.preventDefault(); });
+document.addEventListener('cut', e => { if (!editable(document.activeElement)) e.preventDefault(); });
+
+const _goLegal = go;
+go = function (route, params, noHistory) {
+  if (route !== 'legal') return _goLegal(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && (S.route !== route || JSON.stringify(S.params) !== JSON.stringify(params))) S.history.push([S.route, S.params]);
+  S.route = route; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav(); view.scrollTop = 0; view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(vLegal(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _goLegal.seq;
+
 /* ================= loader (like the site) + sign-out confirmation ================= */
 Object.assign(I18N.he, { lo_title: 'להתנתק?', lo_text: 'בטוח שאתה רוצה להתנתק מהחשבון?', lo_yes: 'כן, התנתק', lo_no: 'ביטול' });
 Object.assign(I18N.en, { lo_title: 'Sign out?', lo_text: 'Are you sure you want to sign out of your account?', lo_yes: 'Yes, sign out', lo_no: 'Cancel' });
@@ -2193,6 +2287,8 @@ const _goPL = go;
 go = function (route, params, noHistory) {
   const moving = route !== S.route || JSON.stringify(params || {}) !== JSON.stringify(S.params || {});
   if (moving && S.started) showLoader(550);
+  // leaving the home page closes the first-time tour (it points at things on the home page)
+  if (route !== 'home' && $('#tourTip')) { try { localStorage.setItem(TOUR_KEY, '1'); } catch { } ['#tourBack', '#tourHole', '#tourTip'].forEach(q => { const el = $(q); if (el) el.remove(); }); }
   return _goPL(route, params, noHistory);
 };
 go.seq = _goPL.seq;
@@ -2259,6 +2355,8 @@ function startTour() {
     tip.style.left = Math.max(12, Math.min(vw - tw - 12, left)) + 'px';
   }
   function draw() {
+    // the tour belongs to the home page; if something navigated away, close it
+    if (S.route !== 'home') return end();
     const list = steps();
     if (i < 0) {
       center(`<div class="tour-logo">${ic('grid', 'xl')}</div><h2>${t('tr_welcome')}</h2><p>${t('tr_welcome_sub')}</p>
