@@ -1,0 +1,74 @@
+{
+  "name": "crafthub-app",
+  "version": "1.0.0",
+  "description": "Craft Hub — plugins, mods, texture packs, shaders and Minecraft servers",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "set CRAFTHUB_URL=http://localhost:3000&& electron .",
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
+  },
+  "author": "Craft Hub",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "productName": "Craft Hub",
+  "build": {
+    "appId": "net.crafthubs.app",
+    "productName": "Craft Hub",
+    "copyright": "Craft Hub",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "offline.html",
+      "blocked.html",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "CraftHubSetup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Craft Hub",
+      "installerLanguages": [
+        "he_IL",
+        "en_US"
+      ],
+      "language": "1037"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "coinodin2-cloud",
+        "repo": "crafthub-app",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

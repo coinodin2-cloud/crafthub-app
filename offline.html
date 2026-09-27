@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Craft Hub</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0b0f;color:#f4f1ea;font-family:"Segoe UI",Arial,sans-serif;-webkit-app-region:drag}
+  .c{height:100%;display:grid;place-items:center;text-align:center}
+  .logo{width:72px;height:72px;margin:0 auto 18px;border-radius:20px;background:linear-gradient(135deg,#f5d78a,#e3b341 50%,#b8862b);display:grid;place-items:center;font-weight:900;font-size:30px;color:#1a1405}
+  h1{margin:0 0 8px;font-size:24px}
+  p{margin:0 0 22px;color:#b9b3a6}
+  button{-webkit-app-region:no-drag;height:44px;padding:0 26px;border:0;border-radius:99px;background:linear-gradient(135deg,#f5d78a,#e3b341 50%,#b8862b);color:#1a1405;font-weight:800;font-size:15px;cursor:pointer}
+  .auto{margin-top:14px;font-size:13px;color:#7d776c}
+</style>
+</head>
+<body>
+<div class="c"><div>
+  <div class="logo">CH</div>
+  <h1>אין חיבור ל-Craft Hub</h1>
+  <p>בדוק את החיבור לאינטרנט ונסה שוב · Check your internet connection</p>
+  <button id="retry">נסה שוב · Retry</button>
+  <div class="auto" id="auto"></div>
+</div></div>
+<script>
+  let n = 15;
+  const retry = () => window.craftHubApp ? window.craftHubApp.retry() : location.reload();
+  document.getElementById('retry').onclick = retry;
+  setInterval(() => { n--; document.getElementById('auto').textContent = `ניסיון אוטומטי בעוד ${n} שניות`; if (n <= 0) { n = 15; retry(); } }, 1000);
+</script>
+</body>
+</html>

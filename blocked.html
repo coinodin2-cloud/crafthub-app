@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Craft Hub — עדכון נדרש</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0b0f;color:#f4f1ea;font-family:"Segoe UI",Arial,sans-serif;-webkit-app-region:drag}
+  .c{height:100%;display:grid;place-items:center;text-align:center;padding:0 20px}
+  .logo{width:78px;height:78px;margin:0 auto 18px;border-radius:22px;background:linear-gradient(135deg,#f5d78a,#e3b341 50%,#b8862b);display:grid;place-items:center;font-weight:900;font-size:32px;color:#1a1405;box-shadow:0 14px 40px rgba(227,179,65,.25)}
+  h1{margin:0 0 10px;font-size:26px}
+  p{margin:0 0 6px;color:#b9b3a6;max-width:460px}
+  .v{font-family:Consolas,monospace;color:#e3b341}
+  button{-webkit-app-region:no-drag;margin-top:22px;height:48px;padding:0 30px;border:0;border-radius:99px;background:linear-gradient(135deg,#f5d78a,#e3b341 50%,#b8862b);color:#1a1405;font-weight:800;font-size:16px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:default}
+  .bar{width:280px;height:8px;margin:18px auto 0;border-radius:99px;background:#24242d;overflow:hidden;display:none}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5d78a,#e3b341)}
+  .st{margin-top:10px;font-size:13px;color:#7d776c;min-height:18px}
+</style>
+</head>
+<body>
+<div class="c"><div>
+  <div class="logo">CH</div>
+  <h1>צריך לעדכן את Craft Hub</h1>
+  <p>עברו יותר מ-3 שבועות מאז שיצאה גרסה חדשה. כדי להמשיך להשתמש באפליקציה צריך לעדכן.</p>
+  <p>You need to update Craft Hub to keep using it.</p>
+  <p style="margin-top:12px"><span class="v" id="cur"></span> ← <span class="v" id="next"></span></p>
+  <button id="go">עדכן עכשיו · Update now</button>
+  <div class="bar" id="bar"><i id="barI"></i></div>
+  <div class="st" id="st"></div>
+</div></div>
+<script>
+  const api = window.craftHubApp;
+  const $ = id => document.getElementById(id);
+  const draw = s => {
+    $('cur').textContent = 'v' + (s.current || '');
+    $('next').textContent = 'v' + (s.version || '?');
+    if (s.downloaded) { $('go').disabled = false; $('go').textContent = 'התקן והפעל מחדש · Install & restart'; $('bar').style.display = 'none'; $('st').textContent = 'העדכון מוכן'; }
+    else if (s.progress) { $('bar').style.display = 'block'; $('barI').style.width = s.progress + '%'; $('st').textContent = 'מוריד עדכון… ' + s.progress + '%'; }
+    else if (s.error) { $('st').textContent = 'אין חיבור לשרת העדכונים — בדוק את האינטרנט ונסה שוב'; $('go').disabled = false; }
+    if (!s.blocked && s.current) api.retry();
+  };
+  if (api) {
+    api.updateState().then(draw);
+    api.onUpdateState(draw);
+    $('go').onclick = async () => { $('go').disabled = true; $('st').textContent = 'מתחבר…'; const r = await api.installUpdate(); if (!r.ok) { $('go').disabled = false; $('st').textContent = 'לא הצלחתי — נסה שוב'; } };
+  }
+</script>
+</body>
+</html>
