@@ -97,13 +97,25 @@ ipcMain.handle('api', (e, { path: p, method, body } = {}) => {
 // sign in: a small window with the Craft Hub login page (Discord / Google / email). Closes itself once signed in.
 ipcMain.handle('login', e => new Promise(resolve => {
   if (!trusted(e)) return resolve(false);
-  const w = new BrowserWindow({ parent: win, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true } });
+  // a fresh, in-memory session for every sign-in: Google / Discord don't remember the last account,
+  // so the user always picks which account to use. Only the Craft Hub cookie is copied into the app.
+  const partition = 'login-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  const loginSes = session.fromPartition(partition);
+  const w = new BrowserWindow({ parent: win, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true, partition } });
   // Google refuses sign-in inside apps that announce themselves — use a plain Chrome user agent here
   w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/\s(Electron|crafthub-app|Craft Hub)\/\S+/gi, ''));
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   let finished = false;
-  const done = ok => { if (finished) return; finished = true; clearInterval(timer); if (!w.isDestroyed()) w.close(); resolve(ok); };
-  const timer = setInterval(async () => { const r = await siteRequest('/api/me'); if (r.data && r.data.user) done(true); }, 1500);
+  const done = ok => { if (finished) return; finished = true; clearInterval(timer); if (!w.isDestroyed()) w.close(); loginSes.clearStorageData().catch(() => { }); resolve(ok); };
+  // copy the Craft Hub session cookie from the login window into the app, then check who is signed in
+  const syncCookies = async () => {
+    const cookies = await loginSes.cookies.get({ url: SITE }).catch(() => []);
+    for (const c of cookies) {
+      await session.defaultSession.cookies.set({ url: SITE, name: c.name, value: c.value, path: c.path || '/', secure: c.secure, httpOnly: c.httpOnly, sameSite: c.sameSite && c.sameSite !== 'unspecified' ? c.sameSite : 'lax', ...(c.expirationDate ? { expirationDate: c.expirationDate } : {}) }).catch(() => { });
+    }
+    return cookies.length;
+  };
+  const timer = setInterval(async () => { if (!(await syncCookies())) return; const r = await siteRequest('/api/me'); if (r.data && r.data.user) done(true); }, 1500);
   w.on('closed', () => done(false));
   // servers that don't have /login yet: fall back to the old site's login window
   w.webContents.on('did-finish-load', async () => {
@@ -118,7 +130,8 @@ ipcMain.handle('login', e => new Promise(resolve => {
 ipcMain.handle('logout', async e => {
   if (!trusted(e)) return false;
   await siteRequest('/auth/logout', { method: 'POST', body: {} });
-  await session.defaultSession.clearStorageData({ origin: SITE_ORIGIN, storages: ['cookies'] });
+  // everything: Craft Hub, and Google / Discord cookies older versions may have kept
+  await session.defaultSession.clearStorageData({ storages: ['cookies'] });
   return true;
 });
 ipcMain.handle('open-external', (e, url) => { if (trusted(e) && /^https?:\/\/[^\s]+$/i.test(String(url))) shell.openExternal(String(url)); });
