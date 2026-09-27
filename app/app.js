@@ -1890,7 +1890,7 @@ drawUpdate = function (st) {
 updPopupShown = true; // the old popup is replaced by the one above
 B.updateState().then(st => drawUpdate(st)).catch(() => { });
 
-/* ================= home page (redesign) ================= */
+/* ================= home page (showcase design) ================= */
 Object.assign(ICONS, {
   puzzle: '<path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3h7Z"/>',
   gear: '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
@@ -1900,89 +1900,151 @@ Object.assign(ICONS, {
   map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14M15 6v14"/>'
 });
 Object.assign(I18N.he, {
-  h_hello: 'שלום', h_hello_guest: 'ברוכים הבאים ל-Craft Hub', h_sub: 'פלאגינים, מודים, טקסטורות ושיידרים מהקהילה הישראלית — מתקינים בלחיצה אחת.',
+  h_hello: 'שלום', h_sub: 'פלאגינים, מודים, טקסטורות ושיידרים מהקהילה — מתקינים בלחיצה אחת.',
   h_search: 'מה מחפשים היום? פלאגין, מוד, טקסטורה…', h_projects: 'פרויקטים', h_downloads: 'הורדות', h_creators: 'קרייטורים', h_servers: 'שרתים',
-  h_categories: 'קטגוריות', h_items: '{x} פריטים', h_spotlight: 'בזרקור', h_top_creators: 'קרייטורים מובילים', h_friends: 'חברים מחוברים', h_last_update: 'מה חדש ב-Craft Hub',
-  h_become: 'רוצה לפרסם תוכן?', h_become_sub: 'העלה את הפלאגין או המוד שלך והגע לאלפי שחקנים.', h_upload: 'העלאת פרויקט', h_add_server: 'הוספת שרת', h_more: 'לכל העדכונים'
+  h_spotlight: 'בזרקור', h_explore: 'לגלות תוכן', h_t_trending: 'טרנדי', h_t_new: 'חדש', h_t_top: 'הכי מורדים', h_t_liked: 'הכי אהובים', h_votes: 'הצבעות החודש',
+  h_top_creators: 'הקרייטורים שלנו', h_become: 'רוצה לפרסם תוכן?', h_become_sub: 'העלה את הפלאגין או המוד שלך והגע לאלפי שחקנים.', h_upload: 'העלאת פרויקט', h_add_server: 'הוספת שרת', h_view: 'לצפייה',
+  bg_change: 'שנה רקע', bg_title: 'רקע', bg_for_home: 'דף הבית', bg_for_all: 'כל האפליקציה', bg_upload: 'העלאת תמונה מהמחשב', bg_link: 'או הדבק קישור לתמונה', bg_use_link: 'השתמש בקישור', bg_remove: 'הסר רקע', bg_dim: 'הכהייה', bg_none: 'אין רקע — משתמשים ברקע הרגיל', bg_saved: 'הרקע עודכן ✓', bg_tip: 'מומלץ: תמונה רחבה (1920×1080 ומעלה), עד 15MB'
 });
 Object.assign(I18N.en, {
-  h_hello: 'Hi', h_hello_guest: 'Welcome to Craft Hub', h_sub: 'Plugins, mods, texture packs and shaders from the community — installed in one click.',
+  h_hello: 'Hi', h_sub: 'Plugins, mods, texture packs and shaders from the community — installed in one click.',
   h_search: 'What are you looking for? A plugin, mod, texture pack…', h_projects: 'Projects', h_downloads: 'Downloads', h_creators: 'Creators', h_servers: 'Servers',
-  h_categories: 'Categories', h_items: '{x} items', h_spotlight: 'Spotlight', h_top_creators: 'Top creators', h_friends: 'Friends online', h_last_update: 'What\'s new in Craft Hub',
-  h_become: 'Want to publish?', h_become_sub: 'Upload your plugin or mod and reach thousands of players.', h_upload: 'Upload a project', h_add_server: 'Add a server', h_more: 'All updates'
+  h_spotlight: 'Spotlight', h_explore: 'Explore', h_t_trending: 'Trending', h_t_new: 'New', h_t_top: 'Most downloaded', h_t_liked: 'Most liked', h_votes: 'votes this month',
+  h_top_creators: 'Our creators', h_become: 'Want to publish?', h_become_sub: 'Upload your plugin or mod and reach thousands of players.', h_upload: 'Upload a project', h_add_server: 'Add a server', h_view: 'View',
+  bg_change: 'Change background', bg_title: 'Background', bg_for_home: 'Home page', bg_for_all: 'Whole app', bg_upload: 'Upload an image', bg_link: 'or paste an image link', bg_use_link: 'Use link', bg_remove: 'Remove background', bg_dim: 'Dim', bg_none: 'No background — the regular one is used', bg_saved: 'Background updated ✓', bg_tip: 'Tip: a wide image (1920×1080 or more), up to 15MB'
 });
 const TYPE_ICON = { plugin: 'puzzle', mod: 'gear', resourcepack: 'palette', shader: 'sun', datapack: 'layers', modpack: 'box', world: 'map' };
+// backgrounds can be a link or an image uploaded to the site (/icons/...)
+const okBg = u => typeof u === 'string' && (/^https:\/\//.test(u) || /^\/icons\/[\w.-]+$/.test(u));
+const bgUrl = u => okBg(u) ? siteImg(u) : '';
+let HOME_TAB = 'trending', HOME_SLIDE = 0, homeTimer = null;
 
 vHome = async function (p, stale) {
+  clearInterval(homeTimer);
   const me = S.me && S.me.user;
-  const [projects, srv, creators, updates, friends] = await Promise.all([
-    loadProjects(), api('/api/servers').catch(() => ({ servers: [] })), api('/api/creators').catch(() => []),
-    api('/api/updates').catch(() => []), me ? api('/api/friends').catch(() => null) : null, refreshInstalled()]);
+  const [projects, srv, creators] = await Promise.all([loadProjects(), api('/api/servers').catch(() => ({ servers: [] })), api('/api/creators').catch(() => []), refreshInstalled()]);
   if (stale()) return;
   const servers = srv.servers || [];
-  const byWeek = (a, b) => (b.week || 0) - (a.week || 0) || (b.downloads || 0) - (a.downloads || 0);
-  const trending = projects.slice().sort(byWeek).slice(0, 6);
-  const newest = projects.slice().sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
-  const spot = projects.find(x => x.featured) || trending[0];
+  const a = (S.site && S.site.appearance) || {};
+  const heroImg = bgUrl(a.homeBackgroundUrl) || bgUrl(a.backgroundUrl);
+  const sorts = {
+    trending: (x, y) => (y.week || 0) - (x.week || 0) || (y.downloads || 0) - (x.downloads || 0),
+    new: (x, y) => y.createdAt - x.createdAt, top: (x, y) => (y.downloads || 0) - (x.downloads || 0), liked: (x, y) => (y.likes || 0) - (x.likes || 0)
+  };
+  const slides = [...projects.filter(x => x.featured), ...projects.slice().sort(sorts.trending)].filter((x, i, l) => l.indexOf(x) === i).slice(0, 4);
   const totalDl = projects.reduce((s, x) => s + (x.downloads || 0), 0);
   const counts = {}; projects.forEach(x => { const k = x.type || 'plugin'; counts[k] = (counts[k] || 0) + 1; });
   const types = Object.keys(S.site.projectTypes || { plugin: 1, mod: 1, resourcepack: 1, shader: 1 });
-  const online = friends ? friends.friends.filter(f => f.online) : [];
-  const upd = updates.slice().sort((a, b) => b.at - a.at)[0];
-  const section = (icon, title, more, inner) => `<section class="section"><div class="section-h">${ic(icon)}<h2>${title}</h2><span class="spacer"></span>${more ? `<a class="link" href="#" data-go="${more}">${t('see_all')} ${ic(flip(), 'sm')}</a>` : ''}</div>${inner}</section>`;
+  const canBg = hasPerm('content');
+  const medal = ['🥇', '🥈', '🥉'];
+  if (HOME_SLIDE >= slides.length) HOME_SLIDE = 0;
 
   put(`
-    <section class="h-hero">
-      <div class="h-glow"></div>
-      <div class="h-in">
-        <span class="h-eyebrow">${ic('sparkle', 'sm')} ${esc(S.site.eyebrow || 'Craft Hub')}</span>
-        <h1>${me ? `${t('h_hello')}, <span class="h-name">${esc(me.globalName || me.username)}</span> 👋` : t('h_hello_guest')}</h1>
+    <section class="sh-hero" ${heroImg ? `style="--hero:url('${esc(heroImg)}')"` : ''}>
+      ${canBg ? `<button class="sh-bgbtn" id="bgBtn">${ic('image', 'sm')} ${t('bg_change')}</button>` : ''}
+      <div class="sh-in">
+        <div class="sh-mark">${ic('grid')}</div>
+        <h1>${me ? `${t('h_hello')}, <span>${esc(me.globalName || me.username)}</span>` : esc(S.site.title || 'Craft Hub')}</h1>
         <p>${t('h_sub')}</p>
-        <form class="h-search" id="hSearch">${ic('search')}<input type="text" name="q" placeholder="${t('h_search')}" autocomplete="off"><button class="btn primary">${LANG === 'he' ? 'חפש' : 'Search'}</button></form>
-        <div class="h-stats">
-          <div><b>${fmtNum(projects.length)}</b><span>${t('h_projects')}</span></div>
-          <div><b>${fmtNum(totalDl)}</b><span>${t('h_downloads')}</span></div>
-          <div><b>${fmtNum(creators.length)}</b><span>${t('h_creators')}</span></div>
-          <div><b>${fmtNum(servers.length)}</b><span>${t('h_servers')}</span></div>
-        </div>
+        <form class="sh-search" id="hSearch">${ic('search')}<input type="text" name="q" placeholder="${t('h_search')}" autocomplete="off"><button class="btn primary lg">${LANG === 'he' ? 'חפש' : 'Search'}</button></form>
+        <div class="sh-pills">${types.map(k => `<button data-type="${k}">${ic(TYPE_ICON[k] || 'box', 'sm')} ${esc(typeName(k))}<small>${counts[k] || 0}</small></button>`).join('')}</div>
       </div>
-      ${spot ? `<div class="h-spot" data-go="project:slug:${esc(spot.slug)}"><span class="chip accent">${ic('star', 'sm')} ${t('h_spotlight')}</span>
-        <div class="h-spot-pic">${pic(spot, 'xl')}</div><b>${esc(spot.name)}</b><p>${esc(spot.short || '')}</p>
-        <div class="row" style="gap:12px;justify-content:center"><span class="stat">${ic('download', 'sm')} ${fmtNum(spot.downloads)}</span>${spot.likes ? `<span class="stat">${ic('heart', 'sm')} ${fmtNum(spot.likes)}</span>` : ''}</div>${installBtn(spot, 'lg')}</div>` : ''}
     </section>
 
-    ${online.length ? `<div class="h-friends"><span class="faint">${ic('users', 'sm')} ${t('h_friends')}</span>${online.slice(0, 12).map(f => `<button class="h-friend" data-go="user:id:${esc(f.id)}" title="${esc(f.name)}"><img src="${esc(siteImg(f.avatar) || f.avatar || '')}" alt=""><span class="online-dot abs"></span></button>`).join('')}</div>` : ''}
-
-    ${section('grid', t('h_categories'), '', `<div class="h-cats">${types.map(k => `<button class="h-cat" data-type="${k}"><span class="h-cat-ic">${ic(TYPE_ICON[k] || 'box')}</span><b>${esc(typeName(k))}</b><small>${t('h_items', counts[k] || 0)}</small></button>`).join('')}</div>`)}
-
-    ${trending.length ? section('flame', t('trending'), 'discover', `<div class="grid">${trending.map(projectCard).join('')}</div>`) : ''}
-
-    ${newest.length ? section('sparkle', t('newest'), 'discover', `<div class="h-row">${newest.map(x => `<div class="h-mini" data-go="project:slug:${esc(x.slug)}">${pic(x)}<div style="min-width:0"><b>${esc(x.name)}</b><small>${esc(typeName(x.type || 'plugin'))} · ${timeAgo(x.createdAt)}</small></div></div>`).join('')}</div>`) : ''}
-
-    <div class="h-two">
-      ${servers.length ? section('globe', t('top_servers'), 'servers', `<div class="stack" style="gap:10px">${servers.slice(0, 4).map(serverRow).join('')}</div>`) : ''}
-      ${creators.length ? section('crown', t('h_top_creators'), 'creators', `<div class="card card-b h-creators">${creators.slice(0, 5).map((c, i) => `<div class="lrow" data-go="user:id:${esc(c.id)}" style="cursor:pointer"><span class="num">${i + 1}</span><img class="av" src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt=""><div style="flex:1;min-width:0"><b>${esc(c.name)}</b><div class="faint" style="font-size:12.5px">${fmtNum(c.projectCount)} ${t('projects')} · ${fmtNum(c.downloads)} ${t('downloads')}</div></div>${c.recommended ? ic('star', 'sm') : ''}</div>`).join('')}</div>`) : ''}
+    <div class="sh-stats">
+      ${[['box', projects.length, 'h_projects'], ['download', totalDl, 'h_downloads'], ['users', creators.length, 'h_creators'], ['globe', servers.length, 'h_servers']].map(([i, n, k]) => `<div>${ic(i)}<b>${fmtNum(n)}</b><span>${t(k)}</span></div>`).join('')}
     </div>
 
-    <div class="h-two">
-      ${upd ? section('megaphone', t('h_last_update'), 'updates', `<article class="card card-b h-upd"><div class="row"><span class="chip accent">${fmtDate(upd.at)}</span></div><h3>${esc(LANG === 'en' && upd.titleEn ? upd.titleEn : upd.title)}</h3><div class="md">${md(String(LANG === 'en' && upd.bodyEn ? upd.bodyEn : upd.body).slice(0, 400))}</div></article>`) : ''}
-      <section class="section"><div class="h-cta"><div class="h-cta-ic">${ic('upload', 'xl')}</div><h3>${t('h_become')}</h3><p class="faint">${t('h_become_sub')}</p><div class="row" style="gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn primary lg" data-go="studio">${ic('upload', 'sm')} ${t('h_upload')}</button><button class="btn lg" data-go="srvedit">${ic('globe', 'sm')} ${t('h_add_server')}</button></div></div></section>
-    </div>`);
+    ${slides.length ? `<section class="sh-spot">
+      <div class="sh-spot-h">${ic('star')}<h2>${t('h_spotlight')}</h2><span class="spacer"></span><div class="sh-dots">${slides.map((x, i) => `<button data-slide="${i}" class="${i === HOME_SLIDE ? 'on' : ''}"></button>`).join('')}</div></div>
+      <div class="sh-track" id="shTrack">${slides.map((x, i) => `<article class="sh-slide ${i === HOME_SLIDE ? 'on' : ''}" data-go="project:slug:${esc(x.slug)}">
+        <div class="sh-slide-pic">${pic(x, 'xl')}</div>
+        <div class="sh-slide-body"><span class="chip accent">${esc(typeName(x.type || 'plugin'))}</span><h3>${esc(x.name)}</h3><p>${esc(x.short || '')}</p>
+          <div class="row" style="gap:14px;flex-wrap:wrap"><span class="stat">${ic('download', 'sm')} ${fmtNum(x.downloads)}</span>${x.likes ? `<span class="stat">${ic('heart', 'sm')} ${fmtNum(x.likes)}</span>` : ''}${x.owner && x.owner.name ? `<span class="faint">${esc(t('by', x.owner.name))}</span>` : ''}</div>
+          <div class="row" style="gap:10px;margin-top:18px">${installBtn(x, 'lg')}<button class="btn lg">${t('h_view')} ${ic(flip(), 'sm')}</button></div></div></article>`).join('')}</div>
+    </section>` : ''}
+
+    <section class="section">
+      <div class="section-h">${ic('grid')}<h2>${t('h_explore')}</h2><span class="spacer"></span><div class="tabs">${['trending', 'new', 'top', 'liked'].map(k => `<button data-ht="${k}" class="${k === HOME_TAB ? 'on' : ''}">${t('h_t_' + k)}</button>`).join('')}</div></div>
+      <div class="grid" id="hGrid"></div>
+      <div style="text-align:center;margin-top:16px"><button class="btn lg" data-go="discover">${t('see_all')}</button></div>
+    </section>
+
+    ${servers.length ? `<section class="section"><div class="section-h">${ic('globe')}<h2>${t('top_servers')}</h2><span class="spacer"></span><a class="link" href="#" data-go="servers">${t('see_all')}</a></div>
+      <div class="sh-podium">${servers.slice(0, 3).map((s, i) => { const icon = siteImg(s.icon), banner = siteImg(s.banner); return `<div class="sh-srv r${i + 1}" data-go="server:slug:${esc(s.slug)}" ${banner ? `style="--bn:url('${esc(banner)}')"` : ''}>
+        <span class="sh-medal">${medal[i]}</span><div class="pic lg">${icon ? `<img src="${esc(icon)}" alt="">` : esc(s.name.charAt(0))}</div><b>${esc(s.name)}</b>
+        <button class="btn sm mono ltr" data-copy="${esc(s.address)}">${ic('copy', 'sm')} ${esc(s.address)}</button><span class="faint">${fmtNum(s.votesMonth || 0)} ${t('h_votes')}</span></div>`; }).join('')}</div></section>` : ''}
+
+    ${creators.length ? `<section class="section"><div class="section-h">${ic('crown')}<h2>${t('h_top_creators')}</h2><span class="spacer"></span><a class="link" href="#" data-go="creators">${t('see_all')}</a></div>
+      <div class="sh-creators">${creators.slice(0, 10).map(c => `<button class="sh-cr" data-go="user:id:${esc(c.id)}"><img src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt="">${c.recommended ? `<span class="sh-cr-star">${ic('star', 'sm')}</span>` : ''}<b>${esc(c.name)}</b><small>${fmtNum(c.projectCount)} ${t('projects')}</small></button>`).join('')}</div></section>` : ''}
+
+    <section class="sh-cta"><div><h3>${t('h_become')}</h3><p>${t('h_become_sub')}</p></div><span class="spacer"></span><button class="btn primary lg" data-go="studio">${ic('upload', 'sm')} ${t('h_upload')}</button><button class="btn lg" data-go="srvedit">${ic('globe', 'sm')} ${t('h_add_server')}</button></section>`);
+
+  const drawGrid = () => { $('#hGrid').innerHTML = projects.slice().sort(sorts[HOME_TAB]).slice(0, 8).map(projectCard).join(''); bindCommon($('#hGrid')); };
+  drawGrid();
+  view.querySelectorAll('[data-ht]').forEach(b => b.onclick = () => { HOME_TAB = b.dataset.ht; view.querySelectorAll('[data-ht]').forEach(x => x.classList.toggle('on', x === b)); drawGrid(); });
   $('#hSearch').onsubmit = e => { e.preventDefault(); go('discover', { q: e.target.q.value.trim() }); };
   view.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { DISC.cat = ''; go('discover', { type: b.dataset.type, q: '' }); });
+  // spotlight: rotates every 6 seconds, dots jump to a slide
+  const show = i => { HOME_SLIDE = i; view.querySelectorAll('.sh-slide').forEach((x, j) => x.classList.toggle('on', j === i)); view.querySelectorAll('[data-slide]').forEach((x, j) => x.classList.toggle('on', j === i)); };
+  view.querySelectorAll('[data-slide]').forEach(b => b.onclick = () => { show(+b.dataset.slide); });
+  if (slides.length > 1) homeTimer = setInterval(() => { if (stale() || !document.querySelector('.sh-slide')) return clearInterval(homeTimer); show((HOME_SLIDE + 1) % slides.length); }, 6000);
+  if ($('#bgBtn')) $('#bgBtn').onclick = () => bgModal('home');
 };
+
+/* ---------- change the background (staff with the "content" permission) ---------- */
+function bgModal(kind) {
+  const m = document.createElement('div'); m.className = 'modal-back';
+  const draw = () => {
+    const a = (S.site && S.site.appearance) || {};
+    const key = kind === 'home' ? 'homeBackgroundUrl' : 'backgroundUrl', dimKey = kind === 'home' ? 'homeBackgroundDim' : 'backgroundDim';
+    const cur = a[key] || '', dim = a[dimKey] ?? (kind === 'home' ? 55 : 70);
+    m.innerHTML = `<div class="card bg-modal"><div class="card-h">${ic('image')}<h3>${t('bg_title')}</h3><span class="spacer"></span><button class="icon-btn" data-x>✕</button></div><div class="card-b stack" style="gap:16px">
+      <div class="tabs">${['home', 'all'].map(k => `<button data-k="${k}" class="${(kind === 'home') === (k === 'home') ? 'on' : ''}">${t(k === 'home' ? 'bg_for_home' : 'bg_for_all')}</button>`).join('')}</div>
+      <div class="bg-prev2" style="${okBg(cur) ? `background-image:linear-gradient(rgba(0,0,0,${dim / 100}),rgba(0,0,0,${dim / 100})),url('${esc(bgUrl(cur))}')` : ''}">${okBg(cur) ? '' : `<span class="faint">${t('bg_none')}</span>`}</div>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary lg" id="bgUp">${ic('upload', 'sm')} ${t('bg_upload')}</button>${okBg(cur) ? `<button class="btn lg danger" id="bgRm">${ic('trash', 'sm')} ${t('bg_remove')}</button>` : ''}</div>
+      <p class="faint" style="margin:-6px 0 0;font-size:12.5px">${t('bg_tip')}</p>
+      <div><label class="lbl">${t('bg_link')}</label><div class="row" style="gap:8px"><input type="text" id="bgLink" class="ltr" placeholder="https://…" value="${/^https:/.test(cur) ? esc(cur) : ''}"><button class="btn" id="bgLinkB">${t('bg_use_link')}</button></div></div>
+      <div><label class="lbl">${t('bg_dim')} <b id="bgDimV">${dim}%</b></label><input type="range" id="bgDim" min="0" max="95" value="${dim}" style="width:100%;accent-color:var(--accent)"></div>
+    </div></div>`;
+    const done = site => { if (site) S.site = site; applyAppearance(); toast(t('bg_saved')); draw(); if (S.route === 'home') vHomeRefreshHero(); };
+    const put_ = async body => { try { done(await api('/api/admin/appearance', { method: 'PUT', body })); } catch (err) { toast(err.message, 'err'); } };
+    m.querySelector('[data-x]').onclick = () => m.remove();
+    m.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { kind = b.dataset.k === 'home' ? 'home' : 'all'; draw(); });
+    m.querySelector('#bgUp').onclick = async () => {
+      const r = await B.uploadFile({ apiPath: `/api/admin/appearance/background/${kind === 'home' ? 'home' : 'main'}`, field: 'image', filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });
+      if (r.canceled) return;
+      if (r.status !== 200) return toast(upErr(r), 'err');
+      done(r.data);
+    };
+    if (m.querySelector('#bgRm')) m.querySelector('#bgRm').onclick = () => put_({ [key]: '' });
+    m.querySelector('#bgLinkB').onclick = () => put_({ [key]: m.querySelector('#bgLink').value.trim() });
+    const r = m.querySelector('#bgDim');
+    r.oninput = () => { m.querySelector('#bgDimV').textContent = r.value + '%'; const p = m.querySelector('.bg-prev2'); if (okBg(cur)) p.style.backgroundImage = `linear-gradient(rgba(0,0,0,${r.value / 100}),rgba(0,0,0,${r.value / 100})),url('${bgUrl(cur)}')`; };
+    r.onchange = () => put_({ [dimKey]: Number(r.value) });
+  };
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  draw();
+}
+// after a background change on the home page, update the hero picture without reloading everything
+function vHomeRefreshHero() {
+  const a = (S.site && S.site.appearance) || {}, hero = view.querySelector('.sh-hero');
+  if (!hero) return;
+  const img = bgUrl(a.homeBackgroundUrl) || bgUrl(a.backgroundUrl);
+  if (img) hero.style.setProperty('--hero', `url('${img.replace(/'/g, '')}')`); else hero.style.removeProperty('--hero');
+}
 
 /* ---------- a separate background for the home page ---------- */
 Object.assign(I18N.he, { home_bg: 'תמונת רקע לדף הבית (קישור)', home_bg_hint: 'השאר ריק כדי להשתמש ברקע הרגיל גם בדף הבית', home_dim: 'הכהיית הרקע של דף הבית', bg_all: 'רקע לכל האפליקציה', bg_home: 'רקע לדף הבית' });
 Object.assign(I18N.en, { home_bg: 'Home page background (URL)', home_bg_hint: 'Leave empty to use the regular background on the home page too', home_dim: 'Home background dim', bg_all: 'App background', bg_home: 'Home page background' });
-const okBg = u => typeof u === 'string' && /^https:\/\//.test(u);
 function applyBg() {
   const a = (S.site && S.site.appearance) || {}, bg = $('#bgimg');
   if (!bg) return;
   const home = S.route === 'home' && okBg(a.homeBackgroundUrl);
   const url = home ? a.homeBackgroundUrl : a.backgroundUrl, dim = home ? (a.homeBackgroundDim ?? 55) : (a.backgroundDim ?? 70);
   if (!okBg(url)) { bg.hidden = true; bg.dataset.url = ''; return; }
-  const css = `url("${url.replace(/"/g, '')}")`;
+  const css = `url("${bgUrl(url).replace(/"/g, '')}")`;
   bg.hidden = false;
   bg.style.opacity = String(1 - Math.min(95, Math.max(0, dim)) / 100);
   if (bg.dataset.url !== url) { bg.dataset.url = url; bg.style.backgroundImage = css; }
@@ -2014,7 +2076,7 @@ aLook = async function (body, stale) {
     <button class="btn primary lg" style="align-self:flex-start">${ic('check', 'sm')} ${t('save')}</button></form>`;
   const f = $('#lkF');
   f.querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { f.querySelector(`[data-dv="${r.name}"]`).textContent = r.value + '%'; prev(); });
-  const prev = () => { const u = f.homeBackgroundUrl.value.trim(); $('#hbPrev').style.backgroundImage = okBg(u) ? `linear-gradient(rgba(0,0,0,${f.homeBackgroundDim.value / 100}),rgba(0,0,0,${f.homeBackgroundDim.value / 100})),url("${u.replace(/"/g, '')}")` : ''; $('#hbPrev').hidden = !okBg(u); };
+  const prev = () => { const u = f.homeBackgroundUrl.value.trim(); $('#hbPrev').style.backgroundImage = okBg(u) ? `linear-gradient(rgba(0,0,0,${f.homeBackgroundDim.value / 100}),rgba(0,0,0,${f.homeBackgroundDim.value / 100})),url("${bgUrl(u).replace(/"/g, '')}")` : ''; $('#hbPrev').hidden = !okBg(u); };
   f.homeBackgroundUrl.oninput = prev; prev();
   f.onsubmit = async e => {
     e.preventDefault();
