@@ -364,7 +364,9 @@ const semverGt = (a, b) => {
   for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0); }
   return false;
 };
-let updateState = { available: false, version: '', downloaded: false, progress: 0, error: '' };
+let updateState = { available: false, version: '', downloaded: false, downloading: false, installing: false, progress: 0, error: '' };
+// the user pressed "update now" before the download finished: install as soon as it is ready
+let installWanted = false;
 function pendingUpdate() {
   const p = readSettings().pendingUpdate;
   if (!p || !p.version || !semverGt(p.version, app.getVersion())) return null; // already on that version (or newer)
@@ -387,9 +389,15 @@ ipcMain.handle('update-state', e => {
 });
 ipcMain.handle('install-update', async e => {
   if (!trusted(e)) throw new Error('forbidden');
-  if (updateState.downloaded) { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return { ok: true }; }
+  if (updateState.downloaded) { updateState.installing = true; pushUpdateState(); setTimeout(() => autoUpdater.quitAndInstall(false, true), 300); return { ok: true }; }
   if (!app.isPackaged) return { ok: false, error: 'dev' };
-  try { await autoUpdater.checkForUpdates(); return { ok: true, downloading: true }; } catch (err) { return { ok: false, error: err.message }; }
+  installWanted = true;
+  updateState = { ...updateState, installing: true, error: '' };
+  pushUpdateState();
+  // already downloading in the background: just wait for it (a second check would restart the download)
+  if (updateState.downloading) return { ok: true, downloading: true };
+  try { updateState.downloading = true; pushUpdateState(); await autoUpdater.checkForUpdates(); return { ok: true, downloading: true }; }
+  catch (err) { installWanted = false; updateState = { ...updateState, downloading: false, installing: false, error: err.message }; pushUpdateState(); return { ok: false, error: err.message }; }
 });
 function setupUpdates() {
   // the lock also works offline and before the update server answers
@@ -401,17 +409,21 @@ function setupUpdates() {
     const s = readSettings();
     // the 3 weeks start the first time a given version is seen
     if (!s.pendingUpdate || s.pendingUpdate.version !== info.version) writeSettings({ ...s, pendingUpdate: { version: info.version, seenAt: (s.pendingUpdate && s.pendingUpdate.seenAt) || Date.now() } });
-    updateState = { ...updateState, available: true, version: info.version, error: '' };
+    updateState = { ...updateState, available: true, version: info.version, downloading: true, error: '' };
     pushUpdateState();
   });
-  autoUpdater.on('download-progress', p => { updateState.progress = Math.round(p.percent || 0); pushUpdateState(); });
-  autoUpdater.on('update-downloaded', info => { updateState = { ...updateState, available: true, version: info.version, downloaded: true, progress: 100 }; pushUpdateState(); });
+  autoUpdater.on('download-progress', p => { const pr = Math.round(p.percent || 0); if (pr === updateState.progress && updateState.downloading) return; updateState.progress = pr; updateState.downloading = true; pushUpdateState(); });
+  autoUpdater.on('update-downloaded', info => {
+    updateState = { ...updateState, available: true, version: info.version, downloaded: true, downloading: false, progress: 100, error: '' };
+    pushUpdateState();
+    if (installWanted) setTimeout(() => autoUpdater.quitAndInstall(false, true), 1200);
+  });
   autoUpdater.on('update-not-available', () => {
     const s = readSettings();
     if (s.pendingUpdate && !semverGt(s.pendingUpdate.version, app.getVersion())) { delete s.pendingUpdate; writeSettings(s); }
-    updateState = { ...updateState, available: false }; pushUpdateState();
+    updateState = { ...updateState, available: false, downloading: false, installing: false }; pushUpdateState();
   });
-  autoUpdater.on('error', err => { updateState.error = err.message; pushUpdateState(); });
+  autoUpdater.on('error', err => { installWanted = false; updateState = { ...updateState, downloading: false, installing: false, error: String((err && err.message) || err).split(/\r?\n/)[0] }; pushUpdateState(); });
   autoUpdater.checkForUpdates().catch(() => { });
   setInterval(() => autoUpdater.checkForUpdates().catch(() => { }), 4 * 3600000);
 }

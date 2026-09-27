@@ -1446,3 +1446,445 @@ async function aSettings(body, stale) {
 }
 // the "advanced panel" window is not used any more
 renderNav = (prev => function () { prev(); const x = $('#nav [data-sitewin]'); if (x) x.remove(); })(renderNav);
+
+/* ================= people (search, friends, favorite servers) + staff area ================= */
+Object.assign(ICONS, {
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  userplus: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/>',
+  book: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4ZM20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7Z"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
+  msg: '<path d="M4 5h16v11H8l-4 4Z"/>'
+});
+Object.assign(I18N.he, {
+  people: 'אנשים', people_sub: 'מצא אנשים, עקוב אחריהם, הוסף חברים וראה את התוכן והשרתים שלהם', p_search: 'חיפוש', p_friends: 'חברים', p_following: 'אני עוקב', p_favs: 'שרתים מועדפים',
+  people_ph: 'חפש שם של משתמש או קרייטור…', people_hint: 'תקליד לפחות 2 אותיות', online: 'מחובר', last_seen: 'נראה {x}',
+  add_friend: 'הוסף חבר', friends_btn: 'חברים', request_sent: 'בקשה נשלחה', accept_friend: 'אשר חברות', decline: 'דחה', remove_friend: 'הסר חבר', confirm_unfriend: 'להסיר את {x} מהחברים?',
+  friend_requests: 'בקשות חברות', sent_requests: 'בקשות ששלחתי', no_friends: 'עוד אין לך חברים — חפש אנשים והוסף אותם', no_following_people: 'אתה עוד לא עוקב אחרי אף אחד', no_favs: 'עוד אין שרתים מועדפים — לחץ על הלב בדף של שרת',
+  fav: 'מועדף', add_fav: 'הוסף למועדפים', their_servers: 'השרתים שלו', their_favs: 'שרתים מועדפים', their_friends: 'חברים', their_projects: 'פרויקטים', friends_n: 'חברים', joined: 'הצטרף',
+  report: 'דיווח', report_title: 'דיווח לצוות', report_reason: 'סיבה', report_text: 'פרטים (לא חובה)', report_sent: 'הדיווח נשלח לצוות ✓', suspended: 'החשבון שלך מושעה', suspended_until: 'עד {x}',
+  reasons: { spam: 'ספאם', malware: 'וירוס / קוד זדוני', stolen: 'תוכן גנוב', offensive: 'תוכן פוגעני', broken: 'לא עובד', scam: 'הונאה', other: 'אחר' },
+  a_me: 'הלוח שלי', a_guide: 'מדריך לצוות', a_reports: 'דיווחים', a_reviews: 'ביקורות', a_users: 'משתמשים', a_tasks: 'משימות', a_log: 'יומן פעולות',
+  st_waiting: 'טיקטים מחכים', st_open_reports: 'דיווחים פתוחים', st_my_tasks: 'המשימות שלי', st_replies: 'תשובות שלי בטיקטים', st_week: '{x} השבוע', st_claimed: 'טיקטים שלקחתי', st_reports: 'דיווחים שטיפלתי', st_actions: 'פעולות ביומן',
+  staff_today: 'מה עושים היום?', staff_todo: ['לענות לטיקטים שמחכים', 'לטפל בדיווחים פתוחים', 'לעבור על ביקורות חדשות', 'לבדוק פרויקטים ושרתים חדשים', 'לסיים את המשימות שלך'],
+  go_tickets: 'לטיקטים', go_reports: 'לדיווחים', go_tasks: 'למשימות', read_guide: 'למדריך',
+  r_open: 'פתוחים', r_done: 'טופלו', r_all: 'הכל', resolve: 'טופל', dismiss: 'דחה', reopen: 'פתח מחדש', note_opt: 'הערה (לא חובה)', reported_by: 'דווח ע"י {x}', handled_by: 'טופל ע"י {x}', type_project: 'פרויקט', type_server: 'שרת', type_user: 'משתמש', type_review: 'ביקורת',
+  u_search: 'חיפוש משתמש לפי שם או ID…', u_banned_only: 'מושעים', warn: 'אזהרה', warn_reason: 'סיבת האזהרה', ban: 'השעיה', unban: 'הסר השעיה', ban_reason: 'סיבת ההשעיה', ban_days: 'ימים (0 = לצמיתות)', forever: 'לצמיתות', warnings: 'אזהרות', staff_notes: 'הערות צוות', add_note: 'הוסף הערה', view_profile: 'לפרופיל', tickets_n: 'טיקטים', reports_n: 'דיווחים', banned_chip: 'מושעה',
+  t_todo: 'לביצוע', t_doing: 'בתהליך', t_done: 'בוצע', task_new: 'משימה חדשה', task_title: 'כותרת', task_text: 'פרטים', assignee: 'אחראי', nobody: '— אף אחד —', prio: 'עדיפות', prio_low: 'נמוכה', prio_normal: 'רגילה', prio_high: 'גבוהה', done_by: 'בוצע ע"י {x}',
+  guide_edit: 'עריכת המדריך', guide_save: 'שמירת המדריך', guide_add: 'הוסף פרק', guide_updated: 'עודכן {x} ע"י {y}', sec_title: 'כותרת הפרק', sec_body: 'תוכן (Markdown: ## כותרת, - רשימה, **מודגש**)',
+  perm_moderation: 'מודרציה (דיווחים, ביקורות, משתמשים)', cancel: 'ביטול'
+});
+Object.assign(I18N.en, {
+  people: 'People', people_sub: 'Find people, follow them, add friends and see their content and servers', p_search: 'Search', p_friends: 'Friends', p_following: 'Following', p_favs: 'Favorite servers',
+  people_ph: 'Search a user or creator name…', people_hint: 'Type at least 2 letters', online: 'Online', last_seen: 'Seen {x}',
+  add_friend: 'Add friend', friends_btn: 'Friends', request_sent: 'Request sent', accept_friend: 'Accept', decline: 'Decline', remove_friend: 'Remove friend', confirm_unfriend: 'Remove {x} from friends?',
+  friend_requests: 'Friend requests', sent_requests: 'Sent requests', no_friends: 'No friends yet — search people and add them', no_following_people: 'You don\'t follow anyone yet', no_favs: 'No favorite servers yet — tap the heart on a server page',
+  fav: 'Favorite', add_fav: 'Add to favorites', their_servers: 'Servers', their_favs: 'Favorite servers', their_friends: 'Friends', their_projects: 'Projects', friends_n: 'friends', joined: 'Joined',
+  report: 'Report', report_title: 'Report to staff', report_reason: 'Reason', report_text: 'Details (optional)', report_sent: 'Report sent to the staff ✓', suspended: 'Your account is suspended', suspended_until: 'until {x}',
+  reasons: { spam: 'Spam', malware: 'Virus / malware', stolen: 'Stolen content', offensive: 'Offensive', broken: 'Broken', scam: 'Scam', other: 'Other' },
+  a_me: 'My desk', a_guide: 'Staff guide', a_reports: 'Reports', a_reviews: 'Reviews', a_users: 'Users', a_tasks: 'Tasks', a_log: 'Activity log',
+  st_waiting: 'Tickets waiting', st_open_reports: 'Open reports', st_my_tasks: 'My tasks', st_replies: 'My ticket replies', st_week: '{x} this week', st_claimed: 'Tickets claimed', st_reports: 'Reports handled', st_actions: 'Logged actions',
+  staff_today: 'What to do today?', staff_todo: ['Answer waiting tickets', 'Handle open reports', 'Go over new reviews', 'Check new projects and servers', 'Finish your tasks'],
+  go_tickets: 'Tickets', go_reports: 'Reports', go_tasks: 'Tasks', read_guide: 'Guide',
+  r_open: 'Open', r_done: 'Handled', r_all: 'All', resolve: 'Resolved', dismiss: 'Dismiss', reopen: 'Reopen', note_opt: 'Note (optional)', reported_by: 'Reported by {x}', handled_by: 'Handled by {x}', type_project: 'Project', type_server: 'Server', type_user: 'User', type_review: 'Review',
+  u_search: 'Search a user by name or ID…', u_banned_only: 'Suspended', warn: 'Warn', warn_reason: 'Warning reason', ban: 'Suspend', unban: 'Lift suspension', ban_reason: 'Suspension reason', ban_days: 'Days (0 = permanent)', forever: 'Permanent', warnings: 'Warnings', staff_notes: 'Staff notes', add_note: 'Add note', view_profile: 'Profile', tickets_n: 'tickets', reports_n: 'reports', banned_chip: 'Suspended',
+  t_todo: 'To do', t_doing: 'In progress', t_done: 'Done', task_new: 'New task', task_title: 'Title', task_text: 'Details', assignee: 'Assignee', nobody: '— nobody —', prio: 'Priority', prio_low: 'Low', prio_normal: 'Normal', prio_high: 'High', done_by: 'Done by {x}',
+  guide_edit: 'Edit guide', guide_save: 'Save guide', guide_add: 'Add section', guide_updated: 'Updated {x} by {y}', sec_title: 'Section title', sec_body: 'Content (Markdown: ## heading, - list, **bold**)',
+  perm_moderation: 'Moderation (reports, reviews, users)', cancel: 'Cancel'
+});
+I18N.he.perm_names.moderation = I18N.he.perm_moderation;
+I18N.en.perm_names.moderation = I18N.en.perm_moderation;
+// servers outside the ranking (favorites, a profile) have no #rank
+const srvRow = s => s.rank ? serverRow(s) : serverRow(s).replace(/<div class="rank[^>]*>#undefined<\/div>/, '');
+// the guide also uses numbered steps (1. 2. 3.)
+const mdSteps = src => md(String(src || '').replace(/^(\d+)\. (.*)$/gm, '- **$1.** $2'));
+const avatarOf = u => esc(siteImg(u.avatar) || u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png');
+const seenTxt = u => u.online ? `<span class="online-dot"></span> ${t('online')}` : u.lastSeen ? t('last_seen', timeAgo(u.lastSeen)) : '';
+
+// one row for a person: avatar, name, badges, and whatever buttons the caller adds
+function personRow(u, right = '') {
+  return `<div class="person" data-go="user:id:${esc(u.id)}"><div class="av-wrap"><img class="av" src="${avatarOf(u)}" alt="">${u.online ? '<span class="online-dot abs"></span>' : ''}</div>
+    <div class="body"><b>${esc(u.name)}</b><div class="faint">${[u.creator ? `<span class="chip accent">${t('creator')}</span>` : '', u.staff ? `<span class="chip">${ic('shield', 'sm')}</span>` : '', u.followers != null ? `${fmtNum(u.followers)} ${t('followers')}` : '', seenTxt(u)].filter(Boolean).join(' · ')}</div></div>${right}</div>`;
+}
+
+let PEOPLE_TAB = 'search', PEOPLE_Q = '';
+async function vPeople(p, stale) {
+  const me = S.me && S.me.user;
+  if (p.tab) PEOPLE_TAB = p.tab;
+  if (!me && PEOPLE_TAB !== 'search') PEOPLE_TAB = 'search';
+  const tabs = [['search', 'search'], ['friends', 'users'], ['following', 'bell'], ['favs', 'heart']].filter(x => me || x[0] === 'search');
+  put(`<div class="head"><div><h1>${ic('users', 'lg')} ${t('people')}</h1><p class="faint" style="margin:6px 0 0">${t('people_sub')}</p></div></div>
+    <div class="tabs big" style="margin-bottom:20px">${tabs.map(([k, i]) => `<button data-pt="${k}" class="${k === PEOPLE_TAB ? 'on' : ''}">${ic(i, 'sm')} ${t('p_' + k)}<span class="pt-n" data-n="${k}"></span></button>`).join('')}</div><div id="pBody"><div class="spin"></div></div>`);
+  view.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { PEOPLE_TAB = b.dataset.pt; go('people', {}, true); });
+  const body = $('#pBody');
+  if (me) api('/api/friends').then(f => { const n = view.querySelector('[data-n="friends"]'); if (n && f.incoming.length) n.textContent = f.incoming.length; }).catch(() => { });
+  if (PEOPLE_TAB === 'search') {
+    body.innerHTML = `<div class="searchbar big">${ic('search')}<input type="text" id="pQ" placeholder="${t('people_ph')}" value="${esc(PEOPLE_Q)}" autocomplete="off"></div><div id="pRes" class="people-grid" style="margin-top:18px"></div>`;
+    const q = $('#pQ'), res = $('#pRes');
+    let timer, n = 0;
+    const run = async () => {
+      PEOPLE_Q = q.value.trim();
+      const my = ++n;
+      if (PEOPLE_Q.length < 2) {
+        // nothing typed yet: show the recommended creators
+        const list = await api('/api/creators').catch(() => []);
+        if (my !== n || stale()) return;
+        res.innerHTML = list.slice(0, 24).map(c => personRow({ ...c, creator: true })).join('') || `<p class="faint">${t('people_hint')}</p>`;
+      } else {
+        const list = await api('/api/search/users?q=' + encodeURIComponent(PEOPLE_Q)).catch(() => []);
+        if (my !== n || stale()) return;
+        res.innerHTML = list.map(u => personRow(u)).join('') || emptyBox('search', t('no_results'));
+      }
+      bindCommon(res);
+    };
+    q.oninput = () => { clearTimeout(timer); timer = setTimeout(run, 250); };
+    q.focus(); run();
+  } else if (PEOPLE_TAB === 'friends') {
+    const draw = async () => {
+      const f = await api('/api/friends');
+      if (stale()) return;
+      const btns = (u, kind) => kind === 'in' ? `<span class="row" data-stop style="gap:8px"><button class="btn sm primary" data-acc="${esc(u.id)}">${ic('check', 'sm')} ${t('accept_friend')}</button><button class="btn sm" data-rm="${esc(u.id)}">${t('decline')}</button></span>`
+        : kind === 'out' ? `<span class="chip" data-stop>${t('request_sent')}</span><button class="icon-btn" data-stop data-rm="${esc(u.id)}">✕</button>` : `<button class="icon-btn" data-stop data-rmf="${esc(u.id)}" data-name="${esc(u.name)}" title="${t('remove_friend')}">${ic('trash', 'sm')}</button>`;
+      body.innerHTML = `${f.incoming.length ? `<div class="card" style="border-color:var(--accent-line);margin-bottom:18px"><div class="card-h">${ic('userplus')}<h3>${t('friend_requests')}</h3><span class="chip accent">${f.incoming.length}</span></div><div class="card-b people-grid">${f.incoming.map(u => personRow(u, btns(u, 'in'))).join('')}</div></div>` : ''}
+        <div class="people-grid">${f.friends.map(u => personRow(u, btns(u))).join('') || emptyBox('users', t('no_friends'))}</div>
+        ${f.outgoing.length ? `<h3 class="sec-t">${t('sent_requests')}</h3><div class="people-grid">${f.outgoing.map(u => personRow(u, btns(u, 'out'))).join('')}</div>` : ''}`;
+      bindCommon(body);
+      const act = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.onclick = async e => { e.stopPropagation(); try { await fn(b); draw(); } catch (err) { toast(err.message, 'err'); } });
+      act('[data-acc]', b => api('/api/friends/' + encodeURIComponent(b.dataset.acc), { method: 'POST', body: {} }));
+      act('[data-rm]', b => api('/api/friends/' + encodeURIComponent(b.dataset.rm), { method: 'DELETE' }));
+      act('[data-rmf]', async b => { if (confirm(t('confirm_unfriend', b.dataset.name))) await api('/api/friends/' + encodeURIComponent(b.dataset.rmf), { method: 'DELETE' }); });
+    };
+    await draw();
+  } else if (PEOPLE_TAB === 'following') {
+    const list = await api('/api/me/following');
+    if (stale()) return;
+    body.innerHTML = `<div class="people-grid">${list.map(u => personRow(u)).join('') || emptyBox('bell', t('no_following_people'))}</div>`;
+  } else {
+    const list = await api('/api/me/favorite-servers');
+    if (stale()) return;
+    body.innerHTML = `<div class="stack" style="gap:10px">${list.map(srvRow).join('') || emptyBox('heart', t('no_favs'))}</div>`;
+  }
+  bindCommon(body);
+}
+
+// report anything to the staff
+function reportModal(type, target, targetName) {
+  if (!(S.me && S.me.user)) return doLogin();
+  const reasons = I18N[LANG].reasons;
+  const m = document.createElement('div'); m.className = 'modal-back';
+  m.innerHTML = `<form class="card tk-modal"><div class="card-h">${ic('flag')}<h3>${t('report_title')}</h3><span class="faint">${esc(targetName || '')}</span><span class="spacer"></span><button type="button" class="icon-btn" data-x>✕</button></div><div class="card-b stack">
+    <div><label class="lbl">${t('report_reason')}</label><div class="chips" style="margin:0">${Object.entries(reasons).filter(([k]) => type === 'project' || !['malware', 'broken'].includes(k)).map(([k, v], i) => `<label class="chip-r"><input type="radio" name="reason" value="${k}" ${i === 0 ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}</div></div>
+    <div><label class="lbl">${t('report_text')}</label><textarea name="text" rows="4" maxlength="1500"></textarea></div>
+    <button class="btn primary lg">${ic('send', 'sm')} ${t('send')}</button></div></form>`;
+  document.body.appendChild(m);
+  m.querySelector('[data-x]').onclick = () => m.remove();
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  m.querySelector('form').onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    try { await api('/api/reports', { method: 'POST', body: { type, target, targetName, reason: f.reason.value, text: f.text.value } }); m.remove(); toast(t('report_sent')); } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+// profile: friend button, report, online, their servers / favorite servers / friends
+const _vUserP = vUser;
+vUser = async function (params, stale) {
+  await _vUserP(params, stale);
+  if (stale()) return;
+  const id = params.id;
+  const x = await api('/api/users/' + encodeURIComponent(id) + '/extra').catch(() => null);
+  if (stale() || !x) return;
+  const me = S.me && S.me.user, mine = me && me.id === id;
+  const head = view.querySelector('.phead');
+  const stats = head && head.querySelector('.meta .row');
+  if (stats) stats.insertAdjacentHTML('beforeend', `<span><b>${fmtNum(x.friendsCount)}</b> ${t('friends_n')}</span>${x.joinedAt ? `<span class="faint">${t('joined')} ${fmtDate(x.joinedAt)}</span>` : ''}${seenTxt(x) ? `<span class="faint">${seenTxt(x)}</span>` : ''}`);
+  if (head && me && !mine) {
+    const box = document.createElement('div'); box.className = 'row'; box.style.gap = '10px'; box.style.flexWrap = 'wrap';
+    const flw = $('#flw'); if (flw) box.appendChild(flw);
+    box.insertAdjacentHTML('beforeend', `<button class="btn" id="frB"></button><button class="icon-btn" id="repU" title="${t('report')}">${ic('flag', 'sm')}</button>`);
+    head.appendChild(box);
+    const drawFr = st => {
+      const b = $('#frB'); x.friend = st;
+      b.className = 'btn ' + (st === 'friends' ? 'ok' : st === 'incoming' ? 'primary' : '');
+      b.innerHTML = st === 'friends' ? `${ic('users', 'sm')} ${t('friends_btn')}` : st === 'outgoing' ? `${ic('clock', 'sm')} ${t('request_sent')}` : st === 'incoming' ? `${ic('check', 'sm')} ${t('accept_friend')}` : `${ic('userplus', 'sm')} ${t('add_friend')}`;
+    };
+    drawFr(x.friend);
+    $('#frB').onclick = async () => {
+      try {
+        if (x.friend === 'friends' && !confirm(t('confirm_unfriend', view.querySelector('.phead h1').textContent))) return;
+        const r = await api('/api/friends/' + encodeURIComponent(id), { method: x.friend === 'friends' || x.friend === 'outgoing' ? 'DELETE' : 'POST', body: {} });
+        drawFr(r.state);
+      } catch (err) { toast(err.message, 'err'); }
+    };
+    $('#repU').onclick = () => reportModal('user', id, view.querySelector('.phead h1').textContent);
+  }
+  const grid = view.querySelector('.view-in > .grid');
+  if (grid && grid.children.length) grid.insertAdjacentHTML('beforebegin', `<h3 class="sec-t">${ic('box', 'sm')} ${t('their_projects')}</h3>`);
+  let extra = '';
+  if (x.servers.length) extra += `<h3 class="sec-t">${ic('globe', 'sm')} ${t('their_servers')}</h3><div class="stack" style="gap:10px">${x.servers.map(srvRow).join('')}</div>`;
+  if (x.favServers.length) extra += `<h3 class="sec-t">${ic('heart', 'sm')} ${t('their_favs')}</h3><div class="stack" style="gap:10px">${x.favServers.map(srvRow).join('')}</div>`;
+  if (x.friends.length) extra += `<h3 class="sec-t">${ic('users', 'sm')} ${t('their_friends')}</h3><div class="people-grid">${x.friends.map(u => personRow(u)).join('')}</div>`;
+  if (extra) { view.querySelector('.view-in').insertAdjacentHTML('beforeend', `<div id="uExtra">${extra}</div>`); bindCommon($('#uExtra')); }
+};
+
+// server page: favorite + report
+const _vServerP = vServer;
+vServer = async function (params, stale) {
+  await _vServerP(params, stale);
+  if (stale()) return;
+  const row = view.querySelector('.srv-hero .row:last-child');
+  if (!row) return;
+  row.insertAdjacentHTML('beforeend', `<button class="btn" id="favB">${ic('heart', 'sm')} <span>${t('add_fav')}</span></button><button class="icon-btn" id="repS" title="${t('report')}">${ic('flag', 'sm')}</button>`);
+  const drawFav = r => { const b = $('#favB'); if (!b) return; b.classList.toggle('ok', r.favorite); b.querySelector('span').textContent = `${r.favorite ? t('fav') : t('add_fav')} · ${fmtNum(r.count)}`; };
+  api(`/api/servers/${encodeURIComponent(params.slug)}/favorite`).then(drawFav).catch(() => { });
+  $('#favB').onclick = async () => { if (!(S.me && S.me.user)) return doLogin(); try { drawFav(await api(`/api/servers/${encodeURIComponent(params.slug)}/favorite`, { method: 'POST', body: {} })); } catch (err) { toast(err.message, 'err'); } };
+  $('#repS').onclick = () => reportModal('server', params.slug, view.querySelector('.srv-hero h1').textContent);
+};
+// project page: report
+const _vProjectP = vProject;
+vProject = async function (params, stale) {
+  await _vProjectP(params, stale);
+  if (stale() || !S.params.project) return;
+  const acts = view.querySelector('.phead .acts'), p = S.params.project;
+  if (!acts || (S.me && S.me.user && S.me.user.id === p.ownerId)) return;
+  acts.insertAdjacentHTML('beforeend', `<button class="icon-btn lg" id="repP" title="${t('report')}">${ic('flag', 'sm')}</button>`);
+  $('#repP').onclick = () => reportModal('project', p.slug, p.name);
+};
+
+/* ---------- staff area ---------- */
+const hasPerm = p => ((S.me && S.me.perms) || []).includes(p);
+vAdmin = async function (p, stale) {
+  const perms = (S.me && S.me.perms) || [];
+  if (!perms.length) return put(emptyBox('shield', t('no_access')));
+  if (p.tab) ADM_TAB = p.tab;
+  const groups = [
+    [null, [['me', 'home', null], ['guide', 'book', null], ['tasks', 'list', null], ['tickets', 'ticket', 'tickets.view']]],
+    ['mod', [['reports', 'flag', 'moderation'], ['reviews', 'star', 'moderation'], ['users', 'user', 'moderation']]],
+    ['content', [['overview', 'chart', null], ['apps', 'badge', 'creators'], ['creators', 'users', 'creators'], ['projects', 'box', 'projects'], ['servers', 'globe', 'projects'], ['updates', 'megaphone', 'content'], ['partners', 'handshake', 'content'], ['look', 'image', 'content'], ['texts', 'edit', 'content'], ['limits', 'tool', 'creators']]],
+    ['manage', [['staff', 'shield', 'staff'], ['log', 'clock', 'staff'], ['backups', 'database', 'settings'], ['maint', 'tool', 'settings'], ['settings', 'settings', 'settings']]]
+  ].map(([g, tabs]) => [g, tabs.filter(x => !x[2] || perms.includes(x[2]))]).filter(g => g[1].length);
+  const all = groups.flatMap(g => g[1]);
+  if (!all.some(x => x[0] === ADM_TAB)) ADM_TAB = 'me';
+  const gName = { mod: LANG === 'he' ? 'מודרציה' : 'Moderation', content: LANG === 'he' ? 'ניהול תוכן' : 'Content', manage: LANG === 'he' ? 'הנהלה' : 'Management' };
+  put(`<div class="head"><h1>${ic('shield', 'lg')} ${t('admin')}</h1></div>
+    <div class="adm-shell"><nav class="adm-nav">${groups.map(([g, tabs]) => `${g ? `<div class="adm-g">${gName[g]}</div>` : ''}${tabs.map(([k, i]) => `<button data-atab="${k}" class="${k === ADM_TAB ? 'on' : ''}">${ic(i, 'sm')} ${t('a_' + k)}<span class="adm-n" data-an="${k}"></span></button>`).join('')}`).join('')}</nav><div id="aBody" class="adm-body"><div class="spin"></div></div></div>`);
+  view.querySelectorAll('[data-atab]').forEach(b => b.onclick = () => { if (b.dataset.atab === 'tickets') { TK_SCOPE = 'all'; return go('support'); } ADM_TAB = b.dataset.atab; go('admin', {}, true); });
+  api('/api/admin/my-stats').then(s => { const set = (k, n) => { const el = view.querySelector(`[data-an="${k}"]`); if (el && n) el.textContent = n; }; set('tickets', s.waiting); set('reports', s.openReports); set('tasks', s.myTasks); }).catch(() => { });
+  const body = $('#aBody');
+  const fn = { me: aMe, guide: aGuide, tasks: aTasks, reports: aReports, reviews: aReviewsMod, users: aUsers, log: aLog, overview: aOverview, apps: aApps, creators: aCreators, projects: aProjects, servers: aServers, updates: aUpdates, partners: aPartners, look: aLook, texts: aTexts, limits: aLimits, staff: aStaff, backups: aBackups, maint: aMaint, settings: aSettings }[ADM_TAB];
+  try { await fn(body, stale); } catch (err) { if (!stale()) body.innerHTML = emptyBox('wifi', t('error'), err.message); }
+  bindCommon(body);
+};
+const admGo = tab => { if (tab === 'tickets') { TK_SCOPE = 'all'; return go('support'); } ADM_TAB = tab; go('admin', {}, true); };
+
+async function aMe(body, stale) {
+  const s = await api('/api/admin/my-stats');
+  if (stale()) return;
+  const me = S.me.user;
+  const k = (icon, n, label, sub, tab) => `<div class="kpi ${tab ? 'click' : ''}" ${tab ? `data-jump="${tab}"` : ''}>${ic(icon)}<b>${fmtNum(n)}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  body.innerHTML = `<div class="card me-hero"><img class="av" src="${avatarOf(me)}" alt=""><div><h2 style="margin:0">${LANG === 'he' ? 'היי' : 'Hi'} ${esc(me.globalName || '')} 👋</h2><p class="faint" style="margin:4px 0 0">${t('staff_today')}</p></div><span class="spacer"></span><button class="btn" data-jump="guide">${ic('book', 'sm')} ${t('read_guide')}</button></div>
+    <div class="kpis" style="margin-top:18px">
+      ${hasPerm('tickets.view') ? k('ticket', s.waiting, t('st_waiting'), '', 'tickets') : ''}${hasPerm('moderation') ? k('flag', s.openReports, t('st_open_reports'), '', 'reports') : ''}${k('list', s.myTasks, t('st_my_tasks'), '', 'tasks')}
+      ${k('msg', s.replies, t('st_replies'), t('st_week', s.repliesWeek))}${k('ticket', s.claimed, t('st_claimed'), s.openClaimed ? `${s.openClaimed} ${t('r_open')}` : '')}${k('check', s.reports, t('st_reports'))}${k('clock', s.actions, t('st_actions'), t('st_week', s.actionsWeek))}</div>
+    <div class="card" style="margin-top:18px"><div class="card-h">${ic('check')}<h3>${t('staff_today')}</h3></div><div class="card-b todo-list">${I18N[LANG].staff_todo.map((x, i) => {
+      const tab = ['tickets', 'reports', 'reviews', 'projects', 'tasks'][i], need = ['tickets.view', 'moderation', 'moderation', 'projects', null][i];
+      return need && !hasPerm(need) ? '' : `<button class="todo" data-jump="${tab}"><span class="num">${i + 1}</span>${esc(x)}<span class="spacer"></span>${ic(flip(), 'sm')}</button>`;
+    }).join('')}</div></div>`;
+  body.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => admGo(b.dataset.jump));
+}
+
+let GUIDE_SEC = null;
+async function aGuide(body, stale, editing) {
+  const g = await api('/api/admin/guide');
+  if (stale()) return;
+  if (!g.sections.some(s => s.id === GUIDE_SEC)) GUIDE_SEC = g.sections[0] && g.sections[0].id;
+  if (editing) {
+    const secs = g.sections.map(s => ({ ...s }));
+    const draw = () => {
+      body.innerHTML = `<div class="stack" id="gEd">${secs.map((s, i) => `<div class="card" data-i="${i}"><div class="card-h">${ic(s.icon || 'book')}<input type="text" class="g-title" value="${esc(s.title)}" placeholder="${t('sec_title')}" style="flex:1"><button class="icon-btn" data-up="${i}" ${i ? '' : 'disabled'}>▲</button><button class="icon-btn" data-dn="${i}" ${i < secs.length - 1 ? '' : 'disabled'}>▼</button><button class="icon-btn" data-del="${i}">${ic('trash', 'sm')}</button></div>
+        <div class="card-b"><label class="lbl">${t('sec_body')}</label><textarea class="g-body" rows="10">${esc(s.body)}</textarea></div></div>`).join('')}
+        <div class="row" style="gap:10px"><button class="btn lg" id="gAdd">${ic('plus', 'sm')} ${t('guide_add')}</button><span class="spacer"></span><button class="btn lg ghost" id="gCancel">${t('cancel')}</button><button class="btn primary lg" id="gSave">${ic('check', 'sm')} ${t('guide_save')}</button></div></div>`;
+      const sync = () => body.querySelectorAll('[data-i]').forEach(c => { const s = secs[c.dataset.i]; s.title = c.querySelector('.g-title').value; s.body = c.querySelector('.g-body').value; });
+      body.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { sync(); const i = +b.dataset.up; [secs[i - 1], secs[i]] = [secs[i], secs[i - 1]]; draw(); });
+      body.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => { sync(); const i = +b.dataset.dn; [secs[i + 1], secs[i]] = [secs[i], secs[i + 1]]; draw(); });
+      body.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { sync(); if (confirm(t('confirm_delete', secs[+b.dataset.del].title))) { secs.splice(+b.dataset.del, 1); draw(); } });
+      $('#gAdd').onclick = () => { sync(); secs.push({ id: 's' + Date.now().toString(36), icon: 'book', title: '', body: '' }); draw(); };
+      $('#gCancel').onclick = () => aGuide(body, stale);
+      $('#gSave').onclick = async () => { sync(); try { await api('/api/admin/guide', { method: 'PUT', body: { sections: secs } }); toast(t('saved')); aGuide(body, stale); } catch (err) { toast(err.message, 'err'); } };
+    };
+    return draw();
+  }
+  const cur = g.sections.find(s => s.id === GUIDE_SEC) || g.sections[0];
+  body.innerHTML = `<div class="guide"><aside class="card guide-toc">${g.sections.map((s, i) => `<button data-sec="${esc(s.id)}" class="${s.id === GUIDE_SEC ? 'on' : ''}"><span class="num">${i + 1}</span>${esc(s.title)}</button>`).join('')}
+      ${g.canEdit ? `<button class="btn" id="gEdit" style="margin-top:10px">${ic('edit', 'sm')} ${t('guide_edit')}</button>` : ''}</aside>
+    <article class="card card-b guide-body">${cur ? `<h1 style="margin-top:0">${ic(cur.icon || 'book', 'lg')} ${esc(cur.title)}</h1><div class="md">${mdSteps(cur.body)}</div>` : ''}
+      ${g.updatedAt ? `<p class="faint" style="font-size:12.5px;margin:24px 0 0">${t('guide_updated', timeAgo(g.updatedAt)).replace('{y}', esc(g.updatedBy))}</p>` : ''}</article></div>`;
+  body.querySelectorAll('[data-sec]').forEach(b => b.onclick = () => { GUIDE_SEC = b.dataset.sec; aGuide(body, stale); });
+  if ($('#gEdit')) $('#gEdit').onclick = () => aGuide(body, stale, true);
+}
+
+async function aTasks(body, stale) {
+  const d = await api('/api/admin/tasks');
+  if (stale()) return;
+  const staffBy = Object.fromEntries(d.staff.map(s => [s.id, s]));
+  const cols = ['todo', 'doing', 'done'];
+  const card = x => { const a = staffBy[x.assignee]; const i = cols.indexOf(x.status);
+    return `<div class="task prio-${x.priority}"><b>${esc(x.title)}</b>${x.text ? `<p>${esc(x.text)}</p>` : ''}
+      <div class="row" style="gap:8px;margin-top:10px;font-size:12.5px">${a ? `<img class="av xs" src="${avatarOf(a)}" alt="" title="${esc(a.name)}"><span>${esc(a.name)}</span>` : `<span class="faint">${t('nobody')}</span>`}<span class="spacer"></span>
+        ${i > 0 ? `<button class="icon-btn" data-mv="${x.id}" data-to="${cols[i - 1]}">${ic(LANG === 'he' ? 'fwd' : 'back', 'sm')}</button>` : ''}${i < 2 ? `<button class="icon-btn" data-mv="${x.id}" data-to="${cols[i + 1]}">${ic(LANG === 'he' ? 'back' : 'fwd', 'sm')}</button>` : ''}<button class="icon-btn" data-del="${x.id}">${ic('trash', 'sm')}</button></div>
+      ${x.status === 'done' && x.doneBy ? `<div class="faint" style="font-size:12px;margin-top:6px">${t('done_by', esc(x.doneBy))} · ${timeAgo(x.doneAt)}</div>` : `<div class="faint" style="font-size:12px;margin-top:6px">${esc(x.by)} · ${timeAgo(x.at)}</div>`}</div>`; };
+  body.innerHTML = `<form class="card" id="tkF"><div class="card-b row" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:2;min-width:200px"><label class="lbl">${t('task_title')}</label><input type="text" name="title" required maxlength="120"></div>
+      <div style="flex:1;min-width:150px"><label class="lbl">${t('assignee')}</label><select name="assignee"><option value="">${t('nobody')}</option>${d.staff.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></div>
+      <div style="min-width:120px"><label class="lbl">${t('prio')}</label><select name="priority"><option value="normal">${t('prio_normal')}</option><option value="high">${t('prio_high')}</option><option value="low">${t('prio_low')}</option></select></div>
+      <div style="flex:3;min-width:240px"><label class="lbl">${t('task_text')}</label><input type="text" name="text" maxlength="2000"></div>
+      <button class="btn primary lg">${ic('plus', 'sm')} ${t('task_new')}</button></div></form>
+    <div class="board">${cols.map(c => { const list = d.tasks.filter(x => x.status === c); return `<div class="col col-${c}"><div class="col-h">${t('t_' + c)} <span class="chip">${list.length}</span></div>${list.map(card).join('') || '<p class="faint" style="text-align:center;margin:18px 0">—</p>'}</div>`; }).join('')}</div>`;
+  $('#tkF').onsubmit = async e => { e.preventDefault(); const f = e.target; try { await api('/api/admin/tasks', { method: 'POST', body: { title: f.title.value, text: f.text.value, assignee: f.assignee.value, priority: f.priority.value } }); aTasks(body, stale); } catch (err) { toast(err.message, 'err'); } };
+  body.querySelectorAll('[data-mv]').forEach(b => b.onclick = async () => { try { await api('/api/admin/tasks/' + b.dataset.mv, { method: 'PUT', body: { status: b.dataset.to } }); aTasks(body, stale); } catch (err) { toast(err.message, 'err'); } });
+  body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm(t('confirm_delete', ''))) return; try { await api('/api/admin/tasks/' + b.dataset.del, { method: 'DELETE' }); aTasks(body, stale); } catch (err) { toast(err.message, 'err'); } });
+}
+
+let REP_F = 'open';
+async function aReports(body, stale) {
+  const list = await api('/api/admin/reports');
+  if (stale()) return;
+  const shown = list.filter(r => REP_F === 'all' || (REP_F === 'open' ? r.status === 'open' : r.status !== 'open'));
+  const reasons = I18N[LANG].reasons;
+  const goTo = r => r.link ? r.link.replace(/^(project|server):/, '$1:slug:').replace(/^user:/, 'user:id:') : '';
+  body.innerHTML = `<div class="tabs" style="margin-bottom:14px">${['open', 'done', 'all'].map(k => `<button data-rf="${k}" class="${REP_F === k ? 'on' : ''}">${t('r_' + k)} ${k === 'open' ? `<span class="chip">${list.filter(r => r.status === 'open').length}</span>` : ''}</button>`).join('')}</div>
+    <div class="stack" style="gap:12px">${shown.map(r => `<div class="card rep ${r.status}"><div class="card-h">${ic('flag')}<span class="chip">${t('type_' + r.type)}</span><b style="flex:1;min-width:0">${esc(r.targetName || r.target)}</b><span class="chip ${r.reason === 'malware' || r.reason === 'scam' ? 'danger' : 'accent'}">${esc(reasons[r.reason] || r.reason)}</span></div>
+      <div class="card-b">${r.text ? `<p style="margin:0 0 10px;white-space:pre-wrap">${esc(r.text)}</p>` : ''}<div class="faint" style="font-size:13px">${t('reported_by', `<a href="#" data-go="user:id:${esc(r.by)}">${esc(r.byName)}</a>`)} · ${timeAgo(r.at)}${r.handledBy ? ` · ${t('handled_by', esc(r.handledBy))}${r.note ? ` — ${esc(r.note)}` : ''}` : ''}</div>
+        <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">${goTo(r) ? `<button class="btn sm" data-go="${esc(goTo(r))}">${ic('eye', 'sm')} ${LANG === 'he' ? 'פתח' : 'Open'}</button>` : ''}${r.type === 'user' ? `<button class="btn sm" data-user="${esc(r.target)}">${ic('user', 'sm')} ${t('a_users')}</button>` : ''}
+          <span class="spacer"></span>${r.status === 'open' ? `<input type="text" class="rep-note" placeholder="${t('note_opt')}" style="max-width:260px;height:36px"><button class="btn sm primary" data-ra="resolve" data-id="${r.id}">${ic('check', 'sm')} ${t('resolve')}</button><button class="btn sm" data-ra="dismiss" data-id="${r.id}">${t('dismiss')}</button>` : `<span class="chip ${r.status === 'resolved' ? 'accent' : ''}">${r.status === 'resolved' ? t('resolve') : t('dismiss')}</span><button class="btn sm ghost" data-ra="reopen" data-id="${r.id}">${t('reopen')}</button>`}</div></div></div>`).join('') || emptyBox('flag', t('no_results'))}</div>`;
+  body.querySelectorAll('[data-rf]').forEach(b => b.onclick = () => { REP_F = b.dataset.rf; aReports(body, stale); });
+  body.querySelectorAll('[data-ra]').forEach(b => b.onclick = async () => { const note = b.closest('.card').querySelector('.rep-note'); try { await api(`/api/admin/reports/${b.dataset.id}/${b.dataset.ra}`, { method: 'POST', body: { note: note ? note.value : '' } }); toast(t('saved')); aReports(body, stale); } catch (err) { toast(err.message, 'err'); } });
+  body.querySelectorAll('[data-user]').forEach(b => b.onclick = () => { USER_OPEN = b.dataset.user; admGo('users'); });
+  bindCommon(body);
+}
+
+async function aReviewsMod(body, stale) {
+  let list = await api('/api/admin/reviews');
+  if (stale()) return;
+  const draw = () => {
+    body.innerHTML = `<div class="card card-b">${list.map((r, i) => `<div class="lrow big" style="align-items:flex-start"><img class="av" src="${avatarOf(r)}" alt="" data-go="user:id:${esc(r.uid)}" style="cursor:pointer"><div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><b>${esc(r.name)}</b><span class="stars">${'★'.repeat(r.rating)}<span class="faint">${'★'.repeat(5 - r.rating)}</span></span><span class="faint">→</span><a href="#" data-go="${r.kind}:slug:${esc(r.target)}">${esc(r.targetName)}</a><span class="chip">${t('type_' + r.kind)}</span><span class="faint" style="font-size:12.5px">${timeAgo(r.at)}</span></div>${r.text ? `<p style="margin:6px 0 0;white-space:pre-wrap">${esc(r.text)}</p>` : ''}</div><button class="icon-btn" data-del="${i}">${ic('trash', 'sm')}</button></div>`).join('') || emptyBox('star', t('no_reviews'))}</div>`;
+    body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const r = list[+b.dataset.del]; if (!confirm(t('confirm_delete', r.name))) return; try { await api(`/api/admin/reviews/${r.kind}/${encodeURIComponent(r.target)}/${r.id}`, { method: 'DELETE' }); list = list.filter(x => x !== r); draw(); toast(t('deleted')); } catch (err) { toast(err.message, 'err'); } });
+    bindCommon(body);
+  };
+  draw();
+}
+
+let USER_OPEN = null, USER_Q = '', USER_BANNED = false;
+async function aUsers(body, stale) {
+  body.innerHTML = `<div class="row" style="gap:10px;margin-bottom:14px"><div class="searchbar" style="flex:1">${ic('search')}<input type="text" id="uQ" placeholder="${t('u_search')}" value="${esc(USER_Q)}"></div><button class="btn ${USER_BANNED ? 'primary' : ''}" id="uBan">${ic('ban', 'sm')} ${t('u_banned_only')}</button></div><div class="users-split"><div class="card card-b" id="uList"><div class="spin"></div></div><div id="uCard"></div></div>`;
+  const load = async () => {
+    const list = await api('/api/admin/users?' + new URLSearchParams(USER_Q ? { q: USER_Q } : USER_BANNED ? { filter: 'banned' } : {}));
+    if (stale()) return;
+    $('#uList').innerHTML = list.map(u => `<div class="lrow big u-row ${u.id === USER_OPEN ? 'on' : ''}" data-u="${esc(u.id)}"><div class="av-wrap"><img class="av" src="${avatarOf(u)}" alt="">${u.online ? '<span class="online-dot abs"></span>' : ''}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b><div class="faint" style="font-size:12.5px">${[u.banned ? `<span class="chip danger">${t('banned_chip')}</span>` : '', u.staff ? `<span class="chip">${ic('shield', 'sm')}</span>` : '', u.warnings ? `⚠️ ${u.warnings}` : '', u.lastSeen ? timeAgo(u.lastSeen) : ''].filter(Boolean).join(' · ')}</div></div></div>`).join('') || emptyBox('user', t('no_results'));
+    $('#uList').querySelectorAll('[data-u]').forEach(r => r.onclick = () => { USER_OPEN = r.dataset.u; $('#uList').querySelectorAll('.u-row').forEach(x => x.classList.toggle('on', x === r)); openUser(); });
+  };
+  const openUser = async () => {
+    const box = $('#uCard');
+    if (!USER_OPEN) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="spin"></div>';
+    let u;
+    try { u = await api('/api/admin/users/' + encodeURIComponent(USER_OPEN)); } catch (err) { box.innerHTML = emptyBox('user', err.message); return; }
+    if (stale()) return;
+    box.innerHTML = `<div class="card"><div class="card-h"><img class="av" src="${avatarOf(u)}" alt="" style="width:52px;height:52px"><div style="flex:1;min-width:0"><h3 style="margin:0">${esc(u.name)}</h3><div class="faint mono ltr" style="font-size:12px">${esc(u.id)} · ${esc(u.provider)}</div></div><button class="btn sm" data-go="user:id:${esc(u.id)}">${ic('eye', 'sm')} ${t('view_profile')}</button></div>
+      <div class="card-b stack" style="gap:16px">
+        <div class="row" style="gap:14px;flex-wrap:wrap;font-size:13.5px"><span>${t('joined')} <b>${u.firstLogin ? fmtDate(u.firstLogin) : '—'}</b></span><span>${seenTxt(u)}</span><span><b>${u.projects}</b> ${t('projects')}</span><span><b>${u.servers}</b> ${t('servers')}</span><span><b>${u.tickets}</b> ${t('tickets_n')}</span><span><b>${u.reports}</b> ${t('reports_n')}</span></div>
+        ${u.banned ? `<div class="ban-box">${ic('ban')}<div style="flex:1"><b>${t('banned_chip')}</b> — ${esc(u.banned.reason)}<div class="faint" style="font-size:12.5px">${esc(u.banned.by)} · ${timeAgo(u.banned.at)} · ${u.banned.until ? t('suspended_until', fmtDate(u.banned.until)) : t('forever')}</div></div><button class="btn sm" id="uUnban">${t('unban')}</button></div>` : ''}
+        ${u.staff ? '' : `<div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" id="uWarn">⚠️ ${t('warn')}</button>${u.banned ? '' : `<button class="btn danger" id="uBanB">${ic('ban', 'sm')} ${t('ban')}</button>`}</div>`}
+        <div id="uForm"></div>
+        <div><h4 style="margin:0 0 8px">${t('warnings')} (${u.warnings.length})</h4>${u.warnings.slice().reverse().map(w => `<div class="note">⚠️ ${esc(w.text)}<div class="faint" style="font-size:12px">${esc(w.by)} · ${timeAgo(w.at)}</div></div>`).join('') || '<p class="faint" style="margin:0">—</p>'}</div>
+        <div><h4 style="margin:0 0 8px">${t('staff_notes')}</h4>${u.notes.slice().reverse().map(n => `<div class="note">${esc(n.text)}<div class="faint row" style="font-size:12px">${esc(n.by)} · ${timeAgo(n.at)}<span class="spacer"></span><button class="icon-btn" data-dn="${n.id}">${ic('trash', 'sm')}</button></div></div>`).join('')}
+          <div class="row" style="gap:8px;margin-top:8px"><input type="text" id="uNote" placeholder="${t('add_note')}…" maxlength="1000"><button class="btn" id="uNoteB">${ic('plus', 'sm')}</button></div></div>
+      </div></div>`;
+    bindCommon(box);
+    const done = async (p, opts) => { try { await api(`/api/admin/users/${encodeURIComponent(u.id)}${p}`, opts); toast(t('saved')); openUser(); load(); } catch (err) { toast(err.message, 'err'); } };
+    const form = (label, extra, cb) => { $('#uForm').innerHTML = `<form class="card card-b stack" style="gap:10px;background:var(--surface-2)"><div><label class="lbl">${label}</label><input type="text" name="reason" required minlength="3" maxlength="500"></div>${extra}<div class="row" style="gap:8px"><button class="btn primary">${ic('check', 'sm')} ${t('save')}</button><button type="button" class="btn ghost" data-c>${t('cancel')}</button></div></form>`; const f = $('#uForm form'); f.reason.focus(); f.querySelector('[data-c]').onclick = () => { $('#uForm').innerHTML = ''; }; f.onsubmit = e => { e.preventDefault(); cb(f); }; };
+    if ($('#uWarn')) $('#uWarn').onclick = () => form(t('warn_reason'), '', f => done('/warn', { method: 'POST', body: { text: f.reason.value } }));
+    if ($('#uBanB')) $('#uBanB').onclick = () => form(t('ban_reason'), `<div><label class="lbl">${t('ban_days')}</label><input type="text" name="days" value="3" class="ltr" style="max-width:120px"></div>`, f => done('/ban', { method: 'PUT', body: { reason: f.reason.value, days: f.days.value } }));
+    if ($('#uUnban')) $('#uUnban').onclick = () => done('/ban', { method: 'DELETE' });
+    $('#uNoteB').onclick = () => { const v = $('#uNote').value.trim(); if (v) done('/notes', { method: 'POST', body: { text: v } }); };
+    box.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => done('/notes/' + b.dataset.dn, { method: 'DELETE' }));
+  };
+  let timer;
+  $('#uQ').oninput = () => { clearTimeout(timer); timer = setTimeout(() => { USER_Q = $('#uQ').value.trim(); load(); }, 250); };
+  $('#uBan').onclick = () => { USER_BANNED = !USER_BANNED; USER_Q = ''; aUsers(body, stale); };
+  await load(); openUser();
+}
+
+async function aLog(body, stale) {
+  const list = await api('/api/admin/log');
+  if (stale()) return;
+  body.innerHTML = `<div class="card card-b">${list.slice(0, 300).map(l => `<div class="lrow" style="align-items:flex-start"><img class="av" src="${avatarOf(l)}" alt=""><div style="flex:1;min-width:0"><div class="row" style="gap:8px;flex-wrap:wrap"><b>${esc(l.by)}</b><span>${esc(l.title)}</span><span class="spacer"></span><span class="faint" style="font-size:12.5px">${timeAgo(l.at)}</span></div>${l.text ? `<div class="faint" style="font-size:13px;white-space:pre-wrap;word-break:break-word">${esc(l.text.replace(/<@[^>]+>/g, '').replace(/\*\*/g, ''))}</div>` : ''}</div></div>`).join('') || emptyBox('clock', t('no_results'))}</div>`;
+}
+
+// suspended accounts see a bar at the top
+function drawBanBar() {
+  let bar = $('#banBar');
+  const b = S.me && S.me.banned;
+  if (!b) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'banBar'; document.body.appendChild(bar); }
+  bar.innerHTML = `${ic('ban')} <b>${t('suspended')}</b>${b.until ? ` ${t('suspended_until', fmtDate(b.until))}` : ''}${b.reason ? ` — ${esc(b.reason)}` : ''}`;
+}
+
+/* ---------- routes + sidebar ---------- */
+const _go4 = go;
+go = function (route, params, noHistory) {
+  if (route !== 'people') return _go4(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && (S.route !== route || JSON.stringify(S.params) !== JSON.stringify(params))) S.history.push([S.route, S.params]);
+  S.route = route; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav(); view.scrollTop = 0; view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(vPeople(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _go4.seq;
+const _renderNav4 = renderNav;
+renderNav = function () {
+  _renderNav4();
+  const nav = $('#nav');
+  const r = S.route === 'user' ? 'people' : S.route;
+  const anchor = nav.querySelector('[data-go="creators"]');
+  if (anchor && !nav.querySelector('[data-go="people"]')) {
+    anchor.insertAdjacentHTML('afterend', `<a href="#" data-go="people" class="${r === 'people' ? 'on' : ''}">${ic('users')} ${t('people')}</a>`);
+    anchor.classList.remove('on');
+    if (S.route === 'creators') anchor.classList.add('on');
+    const a = nav.querySelector('[data-go="people"]'); a._b = 0; bindCommon(nav);
+  }
+  drawBanBar();
+};
+
+/* ---------- app update: bar + popup (fixed) ---------- */
+Object.assign(I18N.he, { au_title: 'גרסה חדשה של Craft Hub!', au_text: 'גרסה {x} מוכנה להורדה — עם שיפורים ותיקונים.', au_later: 'אחר כך', au_ready: 'העדכון מוכן — v{x}', au_restart: 'הפעל מחדש ועדכן', au_failed: 'הורדת העדכון נכשלה', au_retry: 'נסה שוב', au_dl_toast: 'מוריד את העדכון… האפליקציה תופעל מחדש לבד בסוף', au_installing: 'מתקין…', au_starting: 'מתחיל הורדה…' });
+Object.assign(I18N.en, { au_title: 'A new Craft Hub version!', au_text: 'Version {x} is ready — with improvements and fixes.', au_later: 'Later', au_ready: 'Update ready — v{x}', au_restart: 'Restart & update', au_failed: 'The update download failed', au_retry: 'Try again', au_dl_toast: 'Downloading the update… the app restarts by itself when done', au_installing: 'Installing…', au_starting: 'Starting download…' });
+let AU_POP = false;
+function startUpdate() { B.installUpdate().then(r => { if (r && r.ok === false && r.error !== 'dev') toast(t('au_failed') + (r.error ? ': ' + r.error : ''), 'err'); }).catch(() => { }); }
+drawUpdate = function (st) {
+  const bar = $('#updBar');
+  if (!st || !st.available || st.blocked) { bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.classList.toggle('urgent', st.daysLeft <= 3 && !st.downloaded);
+  const busy = st.downloading && !st.downloaded;
+  let label, btn;
+  if (st.error && !busy && !st.downloaded) { label = `<b>${t('au_failed')}</b><span class="faint upd-err">${esc(String(st.error).slice(0, 90))}</span>`; btn = `<button class="btn sm primary" id="updGo">${ic('refresh', 'sm')} ${t('au_retry')}</button>`; }
+  else if (st.downloaded) { label = `<b>${t('au_ready', st.version)}</b>`; btn = `<button class="btn sm primary" id="updGo" ${st.installing ? 'disabled' : ''}>${ic('refresh', 'sm')} ${st.installing ? t('au_installing') : t('au_restart')}</button>`; }
+  else if (busy || st.installing) { label = `<b>${t('upd_available', st.version)}</b><span class="upd-prog"><i style="width:${st.progress || 0}%"></i></span><span class="faint">${st.progress ? st.progress + '%' : t('au_starting')}</span>`; btn = `<button class="btn sm primary" disabled>${t('upd_downloading', st.progress || 0)}</button>`; }
+  else { label = `<b>${t('upd_available', st.version)}</b>`; btn = `<button class="btn sm primary" id="updGo">${ic('download', 'sm')} ${t('upd_now')}</button>`; }
+  bar.innerHTML = `${ic('download', 'sm')}${label}<span class="spacer"></span>${st.downloaded ? '' : `<span class="days">${t('upd_days', st.daysLeft)}</span>`}${btn}`;
+  const go_ = $('#updGo');
+  if (go_) go_.onclick = () => { go_.disabled = true; if (!st.downloaded) toast(t('au_dl_toast')); startUpdate(); };
+  if (AU_POP || st.downloading || st.downloaded || st.installing) return;
+  AU_POP = true;
+  const m = document.createElement('div');
+  m.className = 'modal-back';
+  m.innerHTML = `<div class="card upd-modal"><div class="upd-ic">${ic('download', 'xl')}</div><h2>${t('au_title')}</h2><p>${esc(t('au_text', st.version))}</p><p class="faint" style="font-size:13px">${esc(t('upd_days', st.daysLeft))}</p>
+    <div class="row" style="justify-content:center;margin-top:18px"><button class="btn primary lg" id="updPopGo">${ic('download', 'sm')} ${t('upd_now')}</button><button class="btn lg ghost" id="updPopLater">${t('au_later')}</button></div></div>`;
+  document.body.appendChild(m);
+  $('#updPopLater').onclick = () => m.remove();
+  $('#updPopGo').onclick = () => { m.remove(); toast(t('au_dl_toast')); startUpdate(); };
+};
+updPopupShown = true; // the old popup is replaced by the one above
+B.updateState().then(st => drawUpdate(st)).catch(() => { });
