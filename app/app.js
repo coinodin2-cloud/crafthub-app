@@ -153,8 +153,7 @@ function projectCard(p) {
 const NAV = [['home', 'home'], ['discover', 'grid'], ['library', 'box'], ['servers', 'globe']];
 function renderNav() {
   const r = S.route === 'project' ? 'discover' : S.route === 'server' ? 'servers' : S.route;
-  $('#nav').innerHTML = NAV.map(([k, i]) => `<a href="#" data-go="${k}" class="${r === k ? 'on' : ''}">${ic(i)} ${t(k)}</a>`).join('')
-    + `<a href="#" data-go="play" class="play ${r === 'play' ? 'on' : ''}">${ic('play', 'fill')} ${t('play')}</a>`;
+  $('#nav').innerHTML = NAV.map(([k, i]) => `<a href="#" data-go="${k}" class="${r === k ? 'on' : ''}">${ic(i)} ${t(k)}</a>`).join('');
   const u = S.me && S.me.user;
   $('#sideBottom').innerHTML = `
     <a href="#" data-go="settings" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:11px;color:var(--text-2);font-weight:600" class="${r === 'settings' ? 'on' : ''}">${ic('settings')} ${t('settings')}</a>
@@ -170,7 +169,7 @@ function go(route, params = {}, noHistory) {
   renderNav();
   view.scrollTop = 0;
   view.innerHTML = '<div class="spin"></div>';
-  const fn = { home: vHome, discover: vDiscover, project: vProject, library: vLibrary, play: vPlay, servers: vServers, server: vServer, settings: vSettings }[route] || vHome;
+  const fn = { home: vHome, discover: vDiscover, project: vProject, library: vLibrary, servers: vServers, server: vServer, settings: vSettings }[route] || vHome;
   const seq = ++go.seq;
   Promise.resolve(fn(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
 }
@@ -188,7 +187,7 @@ async function vHome(p, stale) {
     <div class="play-hero" style="margin-bottom:6px">
       <h1>${esc(t('welcome', u ? ', ' + (u.globalName || u.username) : ''))}</h1>
       <p class="faint" style="margin:-10px 0 18px">${t('welcome_sub')}</p>
-      <div class="row"><button class="btn primary lg" data-go="play">${ic('play', 'fill')} ${t('play')}</button><button class="btn lg" data-go="discover">${ic('grid', 'sm')} ${t('discover')}</button></div>
+      <div class="row"><button class="btn primary lg" data-go="library">${ic('box', 'sm')} ${t('library')}</button><button class="btn lg" data-go="discover">${ic('grid', 'sm')} ${t('discover')}</button></div>
     </div>
     <div class="section"><div class="section-h">${ic('flame')}<h2>${t('trending')}</h2><span class="spacer"></span><a class="link" data-go="discover">${t('see_all')}</a></div><div class="grid">${trending.map(projectCard).join('')}</div></div>
     <div class="section"><div class="section-h">${ic('sparkle')}<h2>${t('newest')}</h2></div><div class="grid">${newest.map(projectCard).join('')}</div></div>
@@ -305,46 +304,6 @@ async function vLibrary(p, stale) {
   };
 }
 
-async function vPlay(p, stale) {
-  const [ver, mods, s] = await Promise.all([B.mcVersions(), B.modsList(), B.settings()]);
-  if (stale()) return;
-  const vs = ver.versions || [];
-  let chosen = localStorage.getItem('play_version') || (vs[0] && vs[0].id) || '';
-  if (!vs.some(v => v.id === chosen) && vs[0]) chosen = vs[0].id;
-  const cur = vs.find(v => v.id === chosen);
-  const on = mods.filter(m => m.enabled).length;
-  const groups = ['Fabric', 'Quilt', 'Forge', 'NeoForge', 'OptiFine', 'Vanilla'].map(l => [l, vs.filter(v => v.loader === l)]).filter(g => g[1].length);
-  put(`
-    <div class="play-hero">
-      <h1>${ic('play', 'fill lg')} ${t('play_title')}</h1>
-      ${vs.length ? `<div class="play-row"><select id="verSel">${groups.map(([l, list]) => `<optgroup label="${l}">${list.map(v => `<option value="${esc(v.id)}" ${v.id === chosen ? 'selected' : ''}>${esc(v.id)}</option>`).join('')}</optgroup>`).join('')}</select><button class="btn primary play-btn" id="playBtn">${ic('play', 'fill')} ${t('play_btn')}</button></div>
-      <div class="play-meta">${cur ? `<span class="ld ${cur.loader}">${cur.loader}</span> <span class="mono">${esc(cur.base)}</span>` : ''}${cur && !['Vanilla', 'OptiFine'].includes(cur.loader) ? ` · ${t('mods_on', on)}` : on ? ` · <span style="color:var(--warn)">${t('vanilla_mods')}</span>` : ''}</div>`
-      : `<p class="faint">${s.mcExists ? t('no_versions') : t('mc_missing')}</p>`}
-    </div>
-    <div class="play-layout">
-      <div class="card"><div class="card-h">${ic('grid')}<h3>${t('my_mods')}</h3><span class="faint">${on}/${mods.length}</span><span class="spacer"></span><a class="link" data-go="library">${t('library')} ${ic(flip(), 'sm')}</a></div><div class="card-b">
-        ${mods.length ? mods.slice(0, 12).map(m => `<div class="lrow ${m.enabled ? '' : 'off'}"><label class="tgl"><input type="checkbox" data-mod="${esc(m.file)}" ${m.enabled ? 'checked' : ''}><span></span></label><b class="mono ltr" style="flex:1">${esc(m.name)}</b></div>`).join('') : emptyBox('grid', t('mods_empty'))}
-      </div></div>
-      <div class="card"><div class="card-h">${ic('plus')}<h3>${t('add_loader')}</h3></div><div class="card-b stack" style="gap:10px">
-        <p class="faint" style="margin:0;font-size:13px">${t('add_loader_sub')}</p>
-        <div class="tabs" style="margin:0"><button data-ld="fabric" class="on">Fabric</button><button data-ld="quilt">Quilt</button></div>
-        <select id="ldMc"><option>…</option></select>
-        <button class="btn primary" id="ldGo">${ic('plus', 'sm')} ${t('add')}</button>
-        <span class="faint" style="font-size:12px">${t('forge_hint')} <a data-ext="https://files.minecraftforge.net" class="link">Forge</a> · <a data-ext="https://neoforged.net" class="link">NeoForge</a></span>
-      </div></div>
-    </div>`);
-  const sel = $('#verSel');
-  if (sel) sel.onchange = () => { localStorage.setItem('play_version', sel.value); go('play', {}, true); };
-  const pb = $('#playBtn');
-  if (pb) pb.onclick = async () => { pb.disabled = true; const r = await B.launch(sel.value); toast(r.ok ? t('play_started', sel.value) : t('play_failed'), r.ok ? '' : 'err'); setTimeout(() => { pb.disabled = false; }, 4000); };
-  view.querySelectorAll('[data-mod]').forEach(c => c.onchange = async () => { await B.modsToggle(c.dataset.mod); go('play', {}, true); });
-  let ld = 'fabric';
-  const loadMc = async () => { const box = $('#ldMc'); box.innerHTML = '<option>…</option>'; try { box.innerHTML = (await B.loaderGameVersions(ld)).map(v => `<option>${esc(v)}</option>`).join(''); } catch { box.innerHTML = `<option value="">${t('error')}</option>`; } };
-  view.querySelectorAll('[data-ld]').forEach(b => b.onclick = () => { ld = b.dataset.ld; view.querySelectorAll('[data-ld]').forEach(x => x.classList.toggle('on', x === b)); loadMc(); });
-  loadMc();
-  $('#ldGo').onclick = async () => { const mc = $('#ldMc').value; if (!mc) return; $('#ldGo').disabled = true; try { const r = await B.installLoader({ loader: ld, mc }); localStorage.setItem('play_version', r.id); toast(t('loader_added', r.id)); go('play', {}, true); } catch { toast(t('error'), 'err'); $('#ldGo').disabled = false; } };
-}
-
 function serverRow(s) {
   const icon = siteImg(s.icon);
   return `<div class="srv" data-go="server:slug:${esc(s.slug)}"><div class="rank ${s.rank <= 3 ? 't' + s.rank : ''}">#${s.rank}</div>
@@ -434,7 +393,7 @@ async function vSettings(p, stale) {
 }
 
 /* ---------- account + notifications ---------- */
-async function loadMe() { try { S.me = await api('/api/me'); } catch { S.me = S.me || null; } renderNav(); drawBell(); }
+async function loadMe() { try { S.me = await api('/api/me'); } catch { S.me = S.me || null; } renderNav(); drawBell(); if (typeof maintStaffBar === 'function') maintStaffBar(); }
 async function doLogin() { const ok = await B.login(); if (ok) { await loadMe(); toast('✓'); } return ok; }
 function drawBell() {
   const n = (S.me && S.me.counts && S.me.counts.notifications) || 0;
@@ -649,129 +608,277 @@ openLink = function (l) {
 };
 
 
-/* ================= play directly (Microsoft account) + update popup ================= */
+
+/* ================= admin dashboard (native) + bigger tickets ================= */
 Object.assign(I18N.he, {
-  mc_account: 'חשבון מיינקראפט', mc_signin: 'התחברות עם Microsoft', mc_signout: 'התנתקות', mc_code: 'הקוד שלך (כבר הועתק):', mc_code_hint: 'נפתח דפדפן — הדבק את הקוד ואשר. החלון הזה יתעדכן לבד.',
-  mc_not_configured: 'הפעלה ישירה תעבוד אחרי שהאפליקציה תאושר על ידי Mojang. עד אז "שחק" פותח את הלאנצ׳ר הרשמי.', mc_fallback: 'פתח בלאנצ׳ר הרשמי',
-  new_version: 'הוספת גרסה', mc_version_sel: 'גרסת מיינקראפט', loader_sel: 'טוען', install_version: 'התקן גרסה', version_ready: 'הגרסה {x} מוכנה ✓', ram: 'זיכרון למשחק', ram_gb: '{x} GB',
-  st_auth: 'מתחבר לחשבון…', st_loader: 'מתקין את טוען המודים…', st_java: 'מוריד Java {x}…', st_files: 'מוריד קבצי משחק {x}', st_starting: 'מפעיל את מיינקראפט…', st_running: 'מיינקראפט רץ 🎮', st_exited: 'המשחק נסגר',
-  st_crash: 'המשחק נסגר מהר מדי — כנראה בעיה במודים או בגרסה', open_log: 'פתח לוג', err_app_not_approved: 'האפליקציה עוד לא אושרה על ידי Mojang להתחברות.', err_no_minecraft: 'לחשבון הזה אין מיינקראפט Java.',
-  err_no_xbox_account: 'לחשבון אין פרופיל Xbox — היכנס פעם אחת ל-xbox.com.', err_child_account: 'חשבון ילד — צריך אישור הורה ב-Xbox.', err_already_running: 'המשחק כבר רץ',
-  upd_title: 'גרסה חדשה זמינה!', upd_text: 'גרסה {x} של Craft Hub מוכנה עם שיפורים ותיקונים.', upd_later: 'אחר כך', loader_names: { vanilla: 'Vanilla', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge', neoforge: 'NeoForge' }
+  a_overview: 'סקירה', a_apps: 'בקשות קרייטור', a_projects: 'פרויקטים', a_servers: 'שרתים', a_updates: 'עדכונים', a_maint: 'תחזוקה', a_advanced: 'פאנל מתקדם',
+  k_users: 'משתמשים', k_active: 'פעילים היום', k_active7: 'פעילים השבוע', k_projects: 'פרויקטים', k_downloads: 'הורדות', k_week: 'השבוע', k_likes: 'לייקים', k_reviews: 'ביקורות', k_creators: 'קרייטורים',
+  k_pending: 'ממתינים לאישור', k_servers: 'שרתים', k_votes: 'הצבעות החודש', k_open: 'טיקטים פתוחים', k_unclaimed: 'לא טופלו', k_rating: 'דירוג תמיכה', k_reply: 'זמן תגובה ראשונה', k_storage: 'נפח', k_backup: 'גיבוי אחרון', k_follows: 'מעקבים',
+  c_downloads: 'הורדות — 30 יום', c_signups: 'משתמשים חדשים — 30 יום', c_votes: 'הצבעות לשרתים — 30 יום', c_tickets: 'טיקטים חדשים — 30 יום', c_types: 'פרויקטים לפי סוג', c_providers: 'התחברות לפי שירות', c_cats: 'קטגוריות מובילות',
+  top_projects: 'הפרויקטים המובילים', top_creators: 'הקרייטורים המובילים', top_servers_a: 'השרתים המובילים', recent_users: 'נרשמו לאחרונה', trending_a: 'טרנדי השבוע', hours: 'שעות',
+  approve: 'אישור', reject: 'דחייה', reject_reason: 'סיבת הדחייה (תישלח למשתמש)', pending: 'ממתין', approved: 'אושר', rejected: 'נדחה', no_apps: 'אין בקשות', approved_ok: 'הקרייטור אושר ✓', rejected_ok: 'הבקשה נדחתה',
+  visible: 'מוצג', hidden: 'מוסתר', featured: 'מומלץ', delete: 'מחיקה', confirm_delete: 'למחוק את {x}? אי אפשר לבטל.', deleted: 'נמחק', saved: 'נשמר ✓', search_a: 'חיפוש…',
+  upd_new: 'עדכון חדש', upd_title: 'כותרת', upd_body: 'תוכן', upd_tag: 'סוג', upd_mail: 'לשלוח במייל לנרשמים ({x})', publish: 'פרסום', published: 'פורסם ✓',
+  maint_on: 'האתר והאפליקציה במצב תחזוקה', maint_off: 'הכל פתוח לכולם', maint_msg: 'הודעה למשתמשים', maint_toggle_on: 'הפעל תחזוקה', maint_toggle_off: 'כבה תחזוקה',
+  advanced_hint: 'הגדרות, צוות, עיצוב, שותפים, מגבלות וגיבויים — בפאנל המתקדם.', no_access: 'אין לך גישה לפאנל הניהול',
+  tk_all_open: 'פתוחים', tk_all_closed: 'סגורים', tk_new_title: 'פתיחת טיקט חדש', tk_empty_title: 'אין טיקטים', tk_empty_sub: 'צריך עזרה? פתח טיקט והצוות יענה', tk_waiting: 'מחכה לתשובה', tk_messages: '{x} הודעות', attach_hint: 'Enter לשליחה · Shift+Enter לשורה חדשה'
 });
 Object.assign(I18N.en, {
-  mc_account: 'Minecraft account', mc_signin: 'Sign in with Microsoft', mc_signout: 'Sign out', mc_code: 'Your code (already copied):', mc_code_hint: 'A browser opened — paste the code and approve. This updates by itself.',
-  mc_not_configured: 'Direct launch works once Mojang approves the app. Until then "Play" opens the official launcher.', mc_fallback: 'Open official launcher',
-  new_version: 'Add a version', mc_version_sel: 'Minecraft version', loader_sel: 'Loader', install_version: 'Install version', version_ready: '{x} is ready ✓', ram: 'Game memory', ram_gb: '{x} GB',
-  st_auth: 'Signing in…', st_loader: 'Installing the mod loader…', st_java: 'Downloading Java {x}…', st_files: 'Downloading game files {x}', st_starting: 'Starting Minecraft…', st_running: 'Minecraft is running 🎮', st_exited: 'The game closed',
-  st_crash: 'The game closed right away — probably a mod or version problem', open_log: 'Open log', err_app_not_approved: 'Mojang has not approved the app for sign-in yet.', err_no_minecraft: 'This account does not own Minecraft Java.',
-  err_no_xbox_account: 'This account has no Xbox profile — sign in once at xbox.com.', err_child_account: 'Child account — a parent must allow it on Xbox.', err_already_running: 'The game is already running',
-  upd_title: 'A new version is available!', upd_text: 'Craft Hub {x} is ready with improvements and fixes.', upd_later: 'Later', loader_names: { vanilla: 'Vanilla', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge', neoforge: 'NeoForge' }
+  a_overview: 'Overview', a_apps: 'Creator requests', a_projects: 'Projects', a_servers: 'Servers', a_updates: 'Updates', a_maint: 'Maintenance', a_advanced: 'Advanced panel',
+  k_users: 'Users', k_active: 'Active today', k_active7: 'Active this week', k_projects: 'Projects', k_downloads: 'Downloads', k_week: 'this week', k_likes: 'Likes', k_reviews: 'Reviews', k_creators: 'Creators',
+  k_pending: 'Pending', k_servers: 'Servers', k_votes: 'Votes this month', k_open: 'Open tickets', k_unclaimed: 'Unclaimed', k_rating: 'Support rating', k_reply: 'First reply time', k_storage: 'Storage', k_backup: 'Last backup', k_follows: 'Follows',
+  c_downloads: 'Downloads — 30 days', c_signups: 'New users — 30 days', c_votes: 'Server votes — 30 days', c_tickets: 'New tickets — 30 days', c_types: 'Projects by type', c_providers: 'Sign-in by service', c_cats: 'Top categories',
+  top_projects: 'Top projects', top_creators: 'Top creators', top_servers_a: 'Top servers', recent_users: 'Newest users', trending_a: 'Trending this week', hours: 'hours',
+  approve: 'Approve', reject: 'Reject', reject_reason: 'Rejection reason (sent to the user)', pending: 'Pending', approved: 'Approved', rejected: 'Rejected', no_apps: 'No requests', approved_ok: 'Creator approved ✓', rejected_ok: 'Request rejected',
+  visible: 'Visible', hidden: 'Hidden', featured: 'Featured', delete: 'Delete', confirm_delete: 'Delete {x}? This cannot be undone.', deleted: 'Deleted', saved: 'Saved ✓', search_a: 'Search…',
+  upd_new: 'New update', upd_title: 'Title', upd_body: 'Content', upd_tag: 'Type', upd_mail: 'Email it to subscribers ({x})', publish: 'Publish', published: 'Published ✓',
+  maint_on: 'The site and app are in maintenance', maint_off: 'Everything is open', maint_msg: 'Message to users', maint_toggle_on: 'Turn maintenance on', maint_toggle_off: 'Turn maintenance off',
+  advanced_hint: 'Settings, staff, appearance, partners, limits and backups — in the advanced panel.', no_access: 'You have no access to the admin panel',
+  tk_all_open: 'Open', tk_all_closed: 'Closed', tk_new_title: 'Open a new ticket', tk_empty_title: 'No tickets', tk_empty_sub: 'Need help? Open a ticket and the team will answer', tk_waiting: 'Waiting for reply', tk_messages: '{x} messages', attach_hint: 'Enter to send · Shift+Enter for a new line'
 });
-const PLAY = { status: null };
-function playStatusHtml(st) {
-  if (!st) return '';
-  const pct = st.stage === 'files' && st.total ? Math.round(st.done / st.total * 100) : null;
-  const txt = st.stage === 'auth' ? t('st_auth') : st.stage === 'loader' ? t('st_loader') : st.stage === 'java' ? t('st_java', st.major || '') + (st.bytes ? ` ${fmtSize(st.bytes)}` : '')
-    : st.stage === 'files' ? t('st_files', st.total ? `${st.done}/${st.total}` : '') : st.stage === 'starting' ? t('st_starting') : st.stage === 'running' ? t('st_running')
-    : st.stage === 'exited' ? (st.quick && st.code ? t('st_crash') : t('st_exited')) : st.stage === 'error' ? (I18N[LANG]['err_' + st.error] || st.error) : '';
-  if (!txt) return '';
-  const bad = st.stage === 'error' || (st.stage === 'exited' && st.quick && st.code);
-  return `<div class="play-status ${bad ? 'bad' : ''}"><span>${esc(txt)}</span>${pct != null ? `<div class="pbar"><i style="width:${pct}%"></i></div>` : st.stage === 'running' || bad ? '' : '<div class="pbar ind"><i></i></div>'}${bad ? `<button class="btn sm" id="logBtn">${t('open_log')}</button>` : ''}</div>`;
-}
-function drawPlayStatus() { const el = $('#playStatus'); if (el) { el.innerHTML = playStatusHtml(PLAY.status); const lb = $('#logBtn'); if (lb) lb.onclick = () => B.openGameLog(); } }
-B.onPlay(st => {
-  if (st.stage === 'login-done' || st.stage === 'login-error') { if (st.stage === 'login-error') toast(I18N[LANG]['err_' + st.error] || st.error, 'err'); if (S.route === 'play') go('play', {}, true); return; }
-  PLAY.status = st;
-  if (st.stage === 'running' || st.stage === 'exited' || st.stage === 'error') PLAY.busy = false;
-  drawPlayStatus();
-  const pb = $('#playBtn'); if (pb) pb.disabled = !!PLAY.busy || st.stage === 'running';
+Object.assign(ICONS, {
+  chart: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>',
+  badge: '<circle cx="12" cy="9" r="6"/><path d="m8.5 14.5-1.5 7 5-3 5 3-1.5-7"/>', eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-3.1 4.1M6.6 6.6A18 18 0 0 0 2 12s3.5 7 10 7a10.8 10.8 0 0 0 5.4-1.4"/>',
+  tool: '<path d="M14.7 6.3a4 4 0 0 0 5 5L22 14l-8 8-2.3-2.3a4 4 0 0 0-5-5L3 11l8-8Z"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'
 });
 
-vPlay = async function (p, stale) {
-  const [ver, mods, s, acc] = await Promise.all([B.mcVersions(), B.modsList(), B.settings(), B.mcAccount()]);
+/* ---------- small chart helpers (SVG, no libraries) ---------- */
+function barChart(values, days, h = 150) {
+  const max = Math.max(1, ...values), W = 600, bw = W / values.length;
+  return `<svg class="chart" viewBox="0 0 ${W} ${h + 20}" preserveAspectRatio="none">
+    ${[0.5, 1].map(f => `<line x1="0" x2="${W}" y1="${h - h * f + 4}" y2="${h - h * f + 4}" class="grid"/>`).join('')}
+    ${values.map((v, i) => { const bh = v ? Math.max(3, v / max * (h - 8)) : 0; return `<rect x="${i * bw + 2}" y="${h - bh + 4}" width="${bw - 4}" height="${bh}" rx="3"><title>${days[i]}: ${v}</title></rect>`; }).join('')}
+    <text x="${W - 2}" y="${h + 18}" text-anchor="end">${days[0].slice(5)}</text><text x="2" y="${h + 18}">${days[days.length - 1].slice(5)}</text>
+  </svg>`;
+}
+function hBars(entries, total) {
+  const max = Math.max(1, ...entries.map(e => e[1]));
+  return entries.length ? entries.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="hb"><i style="width:${v / max * 100}%"></i></div><b>${fmtNum(v)}</b>${total ? `<small>${Math.round(v / total * 100)}%</small>` : ''}</div>`).join('') : `<p class="faint">—</p>`;
+}
+const sum = a => a.reduce((s, x) => s + x, 0);
+const kpi = (icon, value, label, sub) => `<div class="kpi">${ic(icon)}<div><b>${value}</b><span>${esc(label)}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
+
+/* ---------- admin ---------- */
+let ADM_TAB = 'overview';
+async function vAdmin(p, stale) {
+  const perms = (S.me && S.me.perms) || [];
+  if (!perms.length) return put(emptyBox('shield', t('no_access')));
+  if (p.tab) ADM_TAB = p.tab;
+  const tabs = [['overview', 'chart', null], ['apps', 'badge', 'creators'], ['projects', 'box', 'projects'], ['servers', 'globe', 'projects'], ['updates', 'megaphone', 'content'], ['maint', 'tool', 'settings']].filter(x => !x[2] || perms.includes(x[2]));
+  if (!tabs.some(x => x[0] === ADM_TAB)) ADM_TAB = 'overview';
+  const head = `<div class="head"><div><h1>${ic('shield', 'lg')} ${t('admin')}</h1></div><span class="spacer"></span><button class="btn" id="advBtn">${ic('settings', 'sm')} ${t('a_advanced')}</button></div>
+    <div class="tabs big">${tabs.map(([k, i]) => `<button data-atab="${k}" class="${k === ADM_TAB ? 'on' : ''}">${ic(i, 'sm')} ${t('a_' + k)}</button>`).join('')}</div><div id="aBody"><div class="spin"></div></div>`;
+  put(head);
+  view.querySelectorAll('[data-atab]').forEach(b => b.onclick = () => { ADM_TAB = b.dataset.atab; go('admin', {}, true); });
+  $('#advBtn').onclick = () => B.openSiteWindow('/admin');
+  const body = $('#aBody');
+  const fn = { overview: aOverview, apps: aApps, projects: aProjects, servers: aServers, updates: aUpdates, maint: aMaint }[ADM_TAB];
+  try { await fn(body, stale); } catch (err) { if (!stale()) body.innerHTML = emptyBox('wifi', t('error'), err.message); }
+  bindCommon(body);
+}
+async function aOverview(body, stale) {
+  const d = await api('/api/admin/insights');
   if (stale()) return;
-  const vs = ver.versions || [];
-  let chosen = localStorage.getItem('play_version') || (vs[0] && vs[0].id) || '';
-  if (!vs.some(v => v.id === chosen) && vs[0]) chosen = vs[0].id;
-  const cur = vs.find(v => v.id === chosen);
-  const on = mods.filter(m => m.enabled).length;
-  const direct = acc.configured && acc.account;
-  const groups = ['Fabric', 'Quilt', 'Forge', 'NeoForge', 'OptiFine', 'Vanilla'].map(l => [l, vs.filter(v => v.loader === l)]).filter(g => g[1].length);
-  const ramGb = Math.round((acc.ramMB || 4096) / 1024);
-  put(`
-    <div class="play-hero">
-      <div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:18px">
-        <div style="flex:1;min-width:300px">
-          <h1>${ic('play', 'fill lg')} ${t('play_title')}</h1>
-          ${vs.length ? `<div class="play-row"><select id="verSel">${groups.map(([l, list]) => `<optgroup label="${l}">${list.map(v => `<option value="${esc(v.id)}" ${v.id === chosen ? 'selected' : ''}>${esc(v.id)}</option>`).join('')}</optgroup>`).join('')}</select><button class="btn primary play-btn" id="playBtn" ${PLAY.busy || (PLAY.status && PLAY.status.stage === 'running') ? 'disabled' : ''}>${ic('play', 'fill')} ${t('play_btn')}</button></div>
-          <div class="play-meta">${cur ? `<span class="ld ${cur.loader}">${cur.loader}</span> <span class="mono">${esc(cur.base)}</span>` : ''}${cur && !['Vanilla', 'OptiFine'].includes(cur.loader) ? ` · ${t('mods_on', on)}` : on ? ` · <span style="color:var(--warn)">${t('vanilla_mods')}</span>` : ''}</div>`
-          : `<p class="faint">${s.mcExists ? t('no_versions') : t('mc_missing')}</p>`}
-          <div id="playStatus">${playStatusHtml(PLAY.status)}</div>
-        </div>
-        <div class="mc-acct">
-          <div class="faint" style="font-size:12px;font-weight:700;margin-bottom:8px">${t('mc_account')}</div>
-          ${acc.account ? `<div class="row"><img src="https://mc-heads.net/avatar/${esc(acc.account.uuid)}/40" alt="" style="width:40px;height:40px;border-radius:8px;image-rendering:pixelated"><div style="flex:1"><b>${esc(acc.account.name)}</b><div class="faint" style="font-size:12px">Microsoft</div></div><button class="icon-btn" id="mcOut" title="${t('mc_signout')}">${ic('logout', 'sm')}</button></div>`
-            : acc.configured ? `<div id="mcLoginBox"><button class="btn primary" id="mcIn">${ic('user', 'sm')} ${t('mc_signin')}</button></div>`
-            : `<p class="faint" style="margin:0;font-size:12.5px;line-height:1.6">${t('mc_not_configured')}</p>`}
-          <div class="faint" style="font-size:12px;font-weight:700;margin:14px 0 6px">${t('ram')}: <span id="ramV">${t('ram_gb', ramGb)}</span></div>
-          <input type="range" id="ram" min="2" max="16" step="1" value="${ramGb}" style="width:100%;accent-color:var(--accent)">
-          ${direct ? `<button class="btn sm ghost" id="fallback" style="margin-top:8px">${t('mc_fallback')}</button>` : ''}
-        </div>
-      </div>
+  const T = d.totals, s = d.series;
+  const typeEntries = Object.entries(d.byType).sort((a, b) => b[1] - a[1]).map(([k, v]) => [typeName(k), v]);
+  const provNames = { discord: 'Discord', google: 'Google', email: 'Email', apple: 'Apple' };
+  body.innerHTML = `
+    <div class="kpis">
+      ${kpi('users', fmtNum(T.users), t('k_users'), `${fmtNum(T.active1)} ${t('k_active')} · ${fmtNum(T.active7)} ${t('k_active7')}`)}
+      ${kpi('download', fmtNum(T.downloads), t('k_downloads'), `+${fmtNum(T.downloadsWeek)} ${t('k_week')}`)}
+      ${kpi('box', fmtNum(T.projects), t('k_projects'), T.hidden ? `${T.hidden} ${t('hidden')}` : '')}
+      ${kpi('badge', fmtNum(T.creators), t('k_creators'), T.pendingApps ? `${T.pendingApps} ${t('k_pending')}` : '')}
+      ${kpi('heart', fmtNum(T.likes), t('k_likes'), `${fmtNum(T.follows)} ${t('k_follows')}`)}
+      ${kpi('star', T.avgReview != null ? T.avgReview + '★' : '—', t('k_reviews'), fmtNum(T.reviews))}
+      ${kpi('globe', fmtNum(T.servers), t('k_servers'), `${fmtNum(T.votesMonth)} ${t('k_votes')}`)}
+      ${kpi('ticket', fmtNum(T.ticketsOpen), t('k_open'), T.ticketsUnclaimed ? `${T.ticketsUnclaimed} ${t('k_unclaimed')}` : '')}
+      ${kpi('star', T.ticketRating != null ? T.ticketRating + '★' : '—', t('k_rating'), T.firstReplyHours != null ? `${t('k_reply')}: ${T.firstReplyHours} ${t('hours')}` : '')}
+      ${kpi('database', T.storageMB + ' MB', t('k_storage'), T.lastBackup ? `${t('k_backup')}: ${timeAgo(T.lastBackup)}` : '')}
     </div>
-    <div class="play-layout">
-      <div class="card"><div class="card-h">${ic('grid')}<h3>${t('my_mods')}</h3><span class="faint">${on}/${mods.length}</span><span class="spacer"></span><a class="link" data-go="library">${t('library')} ${ic(flip(), 'sm')}</a></div><div class="card-b">
-        ${mods.length ? mods.slice(0, 12).map(m => `<div class="lrow ${m.enabled ? '' : 'off'}"><label class="tgl"><input type="checkbox" data-mod="${esc(m.file)}" ${m.enabled ? 'checked' : ''}><span></span></label><b class="mono ltr" style="flex:1">${esc(m.name)}</b></div>`).join('') : emptyBox('grid', t('mods_empty'))}
-      </div></div>
-      <div class="card"><div class="card-h">${ic('plus')}<h3>${t('new_version')}</h3></div><div class="card-b stack" style="gap:10px">
-        <label class="faint" style="font-size:12.5px">${t('loader_sel')}</label>
-        <div class="tabs" style="margin:0">${['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'].map((l, i) => `<button data-ld="${l}" class="${i === 1 ? 'on' : ''}">${I18N[LANG].loader_names[l]}</button>`).join('')}</div>
-        <label class="faint" style="font-size:12.5px">${t('mc_version_sel')}</label>
-        <select id="nvMc"><option>…</option></select>
-        <button class="btn primary" id="nvGo">${ic('download', 'sm')} ${t('install_version')}</button>
-      </div></div>
-    </div>`);
-  const sel = $('#verSel');
-  if (sel) sel.onchange = () => { localStorage.setItem('play_version', sel.value); go('play', {}, true); };
-  const pb = $('#playBtn');
-  if (pb) pb.onclick = async () => {
-    if (!direct) { pb.disabled = true; const r = await B.launch(sel.value); toast(r.ok ? t('play_started', sel.value) : t('play_failed'), r.ok ? '' : 'err'); setTimeout(() => { pb.disabled = false; }, 4000); return; }
-    PLAY.busy = true; pb.disabled = true; PLAY.status = { stage: 'auth' }; drawPlayStatus();
-    const r = await B.mcPlay({ versionId: sel.value });
-    if (r.error) { PLAY.busy = false; pb.disabled = false; if (r.error === 'no_account') go('play', {}, true); else if (!PLAY.status || PLAY.status.stage !== 'error') { PLAY.status = { stage: 'error', error: r.error }; drawPlayStatus(); } }
+    <div class="charts">
+      <div class="card"><div class="card-h">${ic('download')}<h3>${t('c_downloads')}</h3><span class="spacer"></span><b class="accent-num">${fmtNum(sum(s.downloads))}</b></div><div class="card-b">${barChart(s.downloads, d.days)}</div></div>
+      <div class="card"><div class="card-h">${ic('users')}<h3>${t('c_signups')}</h3><span class="spacer"></span><b class="accent-num">${fmtNum(sum(s.signups))}</b></div><div class="card-b">${barChart(s.signups, d.days)}</div></div>
+      <div class="card"><div class="card-h">${ic('globe')}<h3>${t('c_votes')}</h3><span class="spacer"></span><b class="accent-num">${fmtNum(sum(s.votes))}</b></div><div class="card-b">${barChart(s.votes, d.days)}</div></div>
+      <div class="card"><div class="card-h">${ic('ticket')}<h3>${t('c_tickets')}</h3><span class="spacer"></span><b class="accent-num">${fmtNum(sum(s.tickets))}</b></div><div class="card-b">${barChart(s.tickets, d.days)}</div></div>
+    </div>
+    <div class="charts three">
+      <div class="card"><div class="card-h">${ic('box')}<h3>${t('c_types')}</h3></div><div class="card-b">${hBars(typeEntries, T.projects)}</div></div>
+      <div class="card"><div class="card-h">${ic('user')}<h3>${t('c_providers')}</h3></div><div class="card-b">${hBars(Object.entries(d.providers).sort((a, b) => b[1] - a[1]).map(([k, v]) => [provNames[k] || k, v]), T.users)}</div></div>
+      <div class="card"><div class="card-h">${ic('grid')}<h3>${t('c_cats')}</h3></div><div class="card-b">${hBars(d.byCategory)}</div></div>
+    </div>
+    <div class="charts">
+      <div class="card"><div class="card-h">${ic('flame')}<h3>${t('top_projects')}</h3></div><div class="card-b">${d.topProjects.map((x, i) => `<div class="lrow big" data-go="project:slug:${esc(x.slug)}"><span class="rk">${i + 1}</span>${pic(x, 'sm')}<div style="flex:1;min-width:0"><b>${esc(x.name)}</b><div class="faint">${esc(x.owner || '')} · ${esc(typeName(x.type))}</div></div><span class="stat">${ic('download', 'sm')} ${fmtNum(x.downloads)}</span>${x.week ? `<span class="chip accent">+${fmtNum(x.week)}</span>` : ''}</div>`).join('') || '<p class="faint">—</p>'}</div></div>
+      <div class="card"><div class="card-h">${ic('badge')}<h3>${t('top_creators')}</h3></div><div class="card-b">${d.topCreators.map((c, i) => `<div class="lrow big" data-go="user:id:${esc(c.id)}"><span class="rk">${i + 1}</span><img class="av" src="${esc(siteImg(c.avatar) || c.avatar || '')}" alt=""><div style="flex:1;min-width:0"><b>${esc(c.name)}</b><div class="faint">${fmtNum(c.projectCount)} ${t('projects')} · ${fmtNum(c.followers)} ${t('followers')}</div></div><span class="stat">${ic('download', 'sm')} ${fmtNum(c.downloads)}</span></div>`).join('') || '<p class="faint">—</p>'}</div></div>
+      <div class="card"><div class="card-h">${ic('globe')}<h3>${t('top_servers_a')}</h3></div><div class="card-b">${d.topServers.map((x, i) => `<div class="lrow big" data-go="server:slug:${esc(x.slug)}"><span class="rk">${i + 1}</span>${pic(x, 'sm')}<b style="flex:1">${esc(x.name)}</b><span class="stat">${ic('star', 'sm')} ${fmtNum(x.votesMonth)}</span><span class="faint">${fmtNum(x.votesTotal)}</span></div>`).join('') || '<p class="faint">—</p>'}</div></div>
+      <div class="card"><div class="card-h">${ic('user')}<h3>${t('recent_users')}</h3></div><div class="card-b">${d.recentUsers.map(u => `<div class="lrow big" data-go="user:id:${esc(u.id)}"><img class="av" src="${esc(siteImg(u.avatar) || u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt=""><b style="flex:1">${esc(u.name || u.id)}</b><span class="chip">${esc(provNames[u.provider] || u.provider || '')}</span><span class="faint">${timeAgo(u.at)}</span></div>`).join('') || '<p class="faint">—</p>'}</div></div>
+    </div>`;
+}
+async function aApps(body, stale) {
+  const list = await api('/api/admin/applications');
+  if (stale()) return;
+  body.innerHTML = list.length ? `<div class="stack">${list.map(a => `
+    <div class="card app-card ${a.status}">
+      <div class="card-h"><img class="av" src="${esc(siteImg(a.avatar) || a.avatar || '')}" alt=""><div style="flex:1"><b style="font-size:17px">${esc(a.userName)}</b><div class="faint">${timeAgo(a.createdAt)}</div></div><span class="chip ${a.status === 'pending' ? 'accent' : ''}">${t(a.status)}</span></div>
+      <div class="card-b">${(a.answers || []).map(x => `<div class="qa"><b>${esc(x.q)}</b><p>${esc(x.a)}</p></div>`).join('')}${a.reason ? `<p class="faint">${esc(a.reason)}</p>` : ''}
+        ${a.status === 'pending' ? `<div class="row" style="margin-top:14px"><button class="btn primary lg" data-ap="${esc(a.id)}">${ic('check', 'sm')} ${t('approve')}</button><button class="btn danger lg" data-rj="${esc(a.id)}">${t('reject')}</button></div>` : ''}</div>
+    </div>`).join('')}</div>` : emptyBox('badge', t('no_apps'));
+  body.querySelectorAll('[data-ap]').forEach(b => b.onclick = async () => { b.disabled = true; try { await api(`/api/admin/applications/${b.dataset.ap}/approve`, { method: 'POST', body: {} }); toast(t('approved_ok')); go('admin', {}, true); } catch (e) { toast(e.message, 'err'); b.disabled = false; } });
+  body.querySelectorAll('[data-rj]').forEach(b => b.onclick = async () => { const reason = prompt(t('reject_reason')); if (reason === null) return; try { await api(`/api/admin/applications/${b.dataset.rj}/reject`, { method: 'POST', body: { reason } }); toast(t('rejected_ok')); go('admin', {}, true); } catch (e) { toast(e.message, 'err'); } });
+}
+async function aProjects(body, stale) {
+  let list = await api('/api/projects?all=1');
+  if (stale()) return;
+  let q = '';
+  const draw = () => {
+    const rows = list.filter(x => !q || `${x.name} ${x.owner && x.owner.name}`.toLowerCase().includes(q));
+    $('#apList').innerHTML = rows.map(x => `<div class="lrow big"><div data-go="project:slug:${esc(x.slug)}" class="row" style="flex:1;min-width:0;cursor:pointer">${pic(x, 'sm')}<div style="min-width:0"><b>${esc(x.name)}</b><div class="faint">${esc(x.owner && x.owner.name || '')} · ${esc(typeName(x.type || 'plugin'))} · ${fmtNum(x.downloads)} ${t('downloads')}</div></div></div>
+      <button class="btn sm ${x.visible ? '' : 'danger'}" data-vis="${esc(x.slug)}">${ic(x.visible ? 'eye' : 'eyeoff', 'sm')} ${x.visible ? t('visible') : t('hidden')}</button>
+      <button class="btn sm ${x.featured ? 'primary' : ''}" data-feat="${esc(x.slug)}">${ic('star', 'sm')} ${t('featured')}</button>
+      <button class="icon-btn" data-del="${esc(x.slug)}" title="${t('delete')}">${ic('trash', 'sm')}</button></div>`).join('') || emptyBox('box', t('no_results'));
+    const upd = async (slug, patch) => { try { const r = await api('/api/studio/projects/' + encodeURIComponent(slug), { method: 'PUT', body: patch }); list = list.map(x => x.slug === slug ? { ...x, ...r } : x); draw(); toast(t('saved')); } catch (e) { toast(e.message, 'err'); } };
+    $('#apList').querySelectorAll('[data-vis]').forEach(b => b.onclick = () => { const x = list.find(y => y.slug === b.dataset.vis); upd(x.slug, { visible: !x.visible }); });
+    $('#apList').querySelectorAll('[data-feat]').forEach(b => b.onclick = () => { const x = list.find(y => y.slug === b.dataset.feat); upd(x.slug, { featured: !x.featured }); });
+    $('#apList').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = list.find(y => y.slug === b.dataset.del); if (!confirm(t('confirm_delete', x.name))) return; try { await api('/api/studio/projects/' + encodeURIComponent(x.slug), { method: 'DELETE' }); list = list.filter(y => y.slug !== x.slug); draw(); toast(t('deleted')); } catch (e) { toast(e.message, 'err'); } });
+    bindCommon($('#apList'));
   };
-  const fb = $('#fallback'); if (fb) fb.onclick = async () => { const r = await B.launch(sel.value); toast(r.ok ? t('play_started', sel.value) : t('play_failed'), r.ok ? '' : 'err'); };
-  const mi = $('#mcIn');
-  if (mi) mi.onclick = async () => {
-    mi.disabled = true;
-    try {
-      const r = await B.mcLoginStart();
-      if (r.error) { toast(t('mc_not_configured'), 'err'); mi.disabled = false; return; }
-      $('#mcLoginBox').innerHTML = `<div class="faint" style="font-size:12.5px">${t('mc_code')}</div><div class="mc-code mono">${esc(r.userCode)}</div><div class="faint" style="font-size:12px;line-height:1.5">${t('mc_code_hint')}</div><button class="btn sm" data-ext="${esc(r.url)}" style="margin-top:8px">${ic('ext', 'sm')} microsoft.com/link</button>`;
-      bindCommon($('#mcLoginBox'));
-    } catch (err) { toast(err.message, 'err'); mi.disabled = false; }
+  body.innerHTML = `<div class="filters"><input type="search" id="apQ" placeholder="${t('search_a')}" style="max-width:340px"><span class="faint">${list.length} ${t('projects')}</span></div><div class="card card-b" id="apList"></div>`;
+  $('#apQ').oninput = e => { q = e.target.value.toLowerCase().trim(); draw(); };
+  draw();
+}
+async function aServers(body, stale) {
+  let list = await api('/api/admin/servers');
+  if (stale()) return;
+  const draw = () => {
+    body.innerHTML = `<div class="card card-b">${list.map(x => `<div class="lrow big"><div data-go="server:slug:${esc(x.slug)}" class="row" style="flex:1;min-width:0;cursor:pointer">${pic(x, 'sm')}<div style="min-width:0"><b>${esc(x.name)}</b><div class="faint mono ltr">${esc(x.address)} · ${esc(x.owner || '')}</div></div></div>
+      <span class="stat">${ic('star', 'sm')} ${fmtNum(x.votesMonth)}</span>
+      <button class="btn sm ${x.visible ? '' : 'danger'}" data-vis="${esc(x.slug)}">${ic(x.visible ? 'eye' : 'eyeoff', 'sm')} ${x.visible ? t('visible') : t('hidden')}</button>
+      <button class="icon-btn" data-del="${esc(x.slug)}">${ic('trash', 'sm')}</button></div>`).join('') || emptyBox('globe', t('no_results'))}</div>`;
+    body.querySelectorAll('[data-vis]').forEach(b => b.onclick = async () => { const x = list.find(y => y.slug === b.dataset.vis); try { await api('/api/servers/' + encodeURIComponent(x.slug), { method: 'PUT', body: { visible: !x.visible } }); x.visible = !x.visible; draw(); toast(t('saved')); } catch (e) { toast(e.message, 'err'); } });
+    body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = list.find(y => y.slug === b.dataset.del); if (!confirm(t('confirm_delete', x.name))) return; try { await api('/api/servers/' + encodeURIComponent(x.slug), { method: 'DELETE' }); list = list.filter(y => y.slug !== x.slug); draw(); toast(t('deleted')); } catch (e) { toast(e.message, 'err'); } });
+    bindCommon(body);
   };
-  const mo = $('#mcOut'); if (mo) mo.onclick = async () => { await B.mcLogout(); go('play', {}, true); };
-  const ram = $('#ram');
-  ram.oninput = () => { $('#ramV').textContent = t('ram_gb', ram.value); };
-  ram.onchange = () => B.setSetting('ramMB', Number(ram.value) * 1024);
-  view.querySelectorAll('[data-mod]').forEach(c => c.onchange = async () => { await B.modsToggle(c.dataset.mod); go('play', {}, true); });
-  // add a version: Minecraft release + loader
-  let ld = 'fabric';
-  const loadMc = async () => {
-    const box = $('#nvMc'); box.innerHTML = '<option>…</option>';
-    try { const list = ld === 'fabric' || ld === 'quilt' ? await B.loaderGameVersions(ld) : await B.mcReleases(); box.innerHTML = list.map(v => `<option>${esc(v)}</option>`).join(''); }
-    catch { box.innerHTML = `<option value="">${t('error')}</option>`; }
+  draw();
+}
+async function aUpdates(body, stale) {
+  const d = await api('/api/admin/updates');
+  if (stale()) return;
+  const tags = ['new', 'improve', 'fix', 'announce', 'event'];
+  body.innerHTML = `<div class="play-layout">
+    <div class="stack">${d.updates.map(u => `<div class="card card-b"><div class="row"><span class="chip accent">${esc(u.tag)}</span><b style="flex:1;font-size:16px">${esc(u.title)}</b><span class="faint">${fmtDate(u.at)}</span><button class="icon-btn" data-del="${esc(u.id)}">${ic('trash', 'sm')}</button></div><div class="md" style="margin-top:8px">${md(u.body)}</div></div>`).join('') || emptyBox('megaphone', t('no_updates'))}</div>
+    <form class="card" id="uForm"><div class="card-h">${ic('plus')}<h3>${t('upd_new')}</h3></div><div class="card-b stack" style="gap:12px">
+      <input type="text" name="title" required maxlength="120" placeholder="${t('upd_title')}">
+      <select name="tag">${tags.map(x => `<option>${x}</option>`).join('')}</select>
+      <textarea name="body" rows="8" required placeholder="${t('upd_body')}" style="height:auto;padding:12px"></textarea>
+      ${d.emailReady ? `<label class="row faint"><input type="checkbox" name="mail" style="width:auto"> ${t('upd_mail', d.subscribers)}</label>` : ''}
+      <button class="btn primary lg">${ic('megaphone', 'sm')} ${t('publish')}</button></div></form></div>`;
+  $('#uForm').onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    try { await api('/api/admin/updates', { method: 'POST', body: { title: f.title.value.trim(), tag: f.tag.value, body: f.body.value, sendEmail: !!(f.mail && f.mail.checked) } }); toast(t('published')); go('admin', {}, true); } catch (err) { toast(err.message, 'err'); }
   };
-  view.querySelectorAll('[data-ld]').forEach(b => b.onclick = () => { ld = b.dataset.ld; view.querySelectorAll('[data-ld]').forEach(x => x.classList.toggle('on', x === b)); loadMc(); });
-  loadMc();
-  $('#nvGo').onclick = async () => {
-    const mc = $('#nvMc').value; if (!mc) return;
-    const btn = $('#nvGo'); btn.disabled = true; btn.innerHTML = `${ic('download', 'sm')} …`;
-    try { const r = await B.mcInstall({ loader: ld, mc }); localStorage.setItem('play_version', r.id); toast(t('version_ready', r.id)); PLAY.status = null; go('play', {}, true); }
-    catch (err) { toast(t('error') + ': ' + String(err.message || '').replace(/^Error invoking remote method '[^']+': (Error: )?/, ''), 'err'); btn.disabled = false; btn.innerHTML = `${ic('download', 'sm')} ${t('install_version')}`; }
+  body.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm(t('confirm_delete', ''))) return; try { await api('/api/admin/updates/' + b.dataset.del, { method: 'DELETE' }); go('admin', {}, true); } catch (e) { toast(e.message, 'err'); } });
+}
+async function aMaint(body, stale) {
+  const m = await api('/api/admin/maintenance');
+  if (stale()) return;
+  body.innerHTML = `<div class="card maint ${m.enabled ? 'on' : ''}" style="max-width:720px"><div class="card-b stack">
+    <div class="row"><div class="maint-dot"></div><b style="font-size:18px">${m.enabled ? t('maint_on') : t('maint_off')}</b></div>
+    <label class="faint">${t('maint_msg')}</label><textarea id="mMsg" rows="3" style="height:auto;padding:12px">${esc(m.message || '')}</textarea>
+    <div class="row"><button class="btn lg ${m.enabled ? '' : 'danger'}" id="mTog">${ic('tool', 'sm')} ${m.enabled ? t('maint_toggle_off') : t('maint_toggle_on')}</button><button class="btn lg" id="mSave">${t('saved').replace(' ✓', '')}</button></div>
+    <p class="faint" style="margin:0">${t('advanced_hint')}</p></div></div>`;
+  $('#mTog').onclick = async () => { try { await api('/api/admin/maintenance', { method: 'PUT', body: { enabled: !m.enabled, message: $('#mMsg').value } }); go('admin', {}, true); } catch (e) { toast(e.message, 'err'); } };
+  $('#mSave').onclick = async () => { try { await api('/api/admin/maintenance', { method: 'PUT', body: { message: $('#mMsg').value } }); toast(t('saved')); } catch (e) { toast(e.message, 'err'); } };
+}
+
+/* ---------- tickets, bigger ---------- */
+let TK_FILTER = 'open';
+vTickets = async function (p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const staff = (S.me.perms || []).includes('tickets.view');
+  const [list, projects] = await Promise.all([api('/api/tickets' + (staff && TK_SCOPE === 'all' ? '?scope=all' : '')), loadProjects()]);
+  if (stale()) return;
+  const cats = (S.site && S.site.ticketCategories) || ['support', 'bug', 'suggestion', 'report', 'other'];
+  const shown = list.filter(x => TK_FILTER === 'open' ? x.status === 'open' : x.status !== 'open');
+  put(`<div class="head"><div><h1>${ic('ticket', 'lg')} ${t('support')}</h1><p>${t('tickets_sub')}</p></div><span class="spacer"></span><button class="btn primary lg" id="tkNew">${ic('plus', 'sm')} ${t('new_ticket')}</button></div>
+    <div class="row" style="margin-bottom:18px;flex-wrap:wrap">
+      ${staff ? `<div class="tabs big" style="margin:0"><button data-scope="mine" class="${TK_SCOPE === 'mine' ? 'on' : ''}">${t('my_tickets')}</button><button data-scope="all" class="${TK_SCOPE === 'all' ? 'on' : ''}">${t('all_tickets')}</button></div><span style="width:12px"></span>` : ''}
+      <div class="tabs big" style="margin:0"><button data-f="open" class="${TK_FILTER === 'open' ? 'on' : ''}">${t('tk_all_open')} <span class="faint">${list.filter(x => x.status === 'open').length}</span></button><button data-f="closed" class="${TK_FILTER === 'closed' ? 'on' : ''}">${t('tk_all_closed')} <span class="faint">${list.filter(x => x.status !== 'open').length}</span></button></div>
+    </div>
+    <div class="tk-list">${shown.length ? shown.map(tk => `<div class="tk-card ${tk.status}" data-go="ticket:id:${tk.id}">
+        <div class="tk-num">#${tk.id}</div>
+        <div class="tk-main"><div class="row" style="gap:8px;flex-wrap:wrap"><b class="tk-subj">${esc(tk.subject)}</b><span class="chip">${t('cat_' + tk.category)}</span>${tk.claimedBy ? `<span class="chip accent">${esc(t('claimed_by', tk.claimedBy.name))}</span>` : ''}</div>
+          <p>${tk.lastMessage ? `<b>${esc(tk.lastMessage.authorName || '')}:</b> ${esc(tk.lastMessage.text)}` : ''}</p></div>
+        <div class="tk-side"><span class="tk-status">${tk.status === 'open' ? t('st_open') : t('st_closed')}</span><span class="faint">${timeAgo(tk.updatedAt)}</span><span class="faint">${t('tk_messages', tk.messageCount || 0)}</span></div>
+      </div>`).join('') : `<div class="tk-empty">${ic('ticket', 'xl')}<b>${t('tk_empty_title')}</b><span>${t('tk_empty_sub')}</span></div>`}</div>`);
+  view.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => { TK_SCOPE = b.dataset.scope; go('support', {}, true); });
+  view.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { TK_FILTER = b.dataset.f; go('support', {}, true); });
+  $('#tkNew').onclick = () => {
+    const m = document.createElement('div'); m.className = 'modal-back';
+    m.innerHTML = `<form class="card tk-modal"><div class="card-h">${ic('ticket')}<h3>${t('tk_new_title')}</h3><span class="spacer"></span><button type="button" class="icon-btn" data-x>✕</button></div><div class="card-b stack">
+      <div><label class="lbl">${t('subject')}</label><input type="text" name="subject" maxlength="120" required></div>
+      <div class="row" style="gap:12px;align-items:flex-start"><div style="flex:1"><label class="lbl">${t('category')}</label><select name="category">${cats.map(c => `<option value="${c}">${t('cat_' + c)}</option>`).join('')}</select></div>
+        <div style="flex:1"><label class="lbl">${t('project_opt')}</label><select name="project"><option value="">—</option>${projects.map(x => `<option value="${esc(x.slug)}">${esc(x.name)}</option>`).join('')}</select></div></div>
+      <div><label class="lbl">${t('message')}</label><textarea name="message" rows="7" required></textarea></div>
+      <button class="btn primary lg">${ic('send', 'sm')} ${t('send')}</button></div></form>`;
+    document.body.appendChild(m);
+    m.querySelector('[data-x]').onclick = () => m.remove();
+    m.onclick = e => { if (e.target === m) m.remove(); };
+    m.querySelector('input').focus();
+    m.querySelector('form').onsubmit = async e => {
+      e.preventDefault(); const f = e.target, btn = f.querySelector('button.primary'); btn.disabled = true;
+      try { const r = await api('/api/tickets', { method: 'POST', body: { subject: f.subject.value.trim(), category: f.category.value, project: f.project.value, message: f.message.value.trim() } }); m.remove(); toast(t('ticket_created')); go('ticket', { id: String(r.id) }); }
+      catch (err) { toast(err.message, 'err'); btn.disabled = false; }
+    };
   };
+};
+vTicket = async function ({ id }, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  let tk = await api('/api/tickets/' + encodeURIComponent(id));
+  if (stale()) return;
+  const draw = () => {
+    const a = tk.actions || {};
+    const who = m => m.role === 'staff' ? t('staff') : m.role === 'bot' ? t('bot') : m.role === 'note' ? t('note') : '';
+    put(`<div class="tk-head card">
+        <div style="flex:1;min-width:0"><div class="row" style="gap:10px;flex-wrap:wrap"><span class="tk-num big">#${tk.id}</span><h1 style="font-size:24px">${esc(tk.subject)}</h1></div>
+          <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><span class="tk-status ${tk.status}">${t('st_' + tk.status)}</span><span class="chip">${t('cat_' + tk.category)}</span>${tk.claimedBy ? `<span class="chip accent">${esc(t('claimed_by', tk.claimedBy.name))}</span>` : ''}<span class="faint">${fmtDate(tk.createdAt)}</span></div></div>
+        <div class="row" style="flex-wrap:wrap">${a.canClaim ? `<button class="btn lg" data-act="claim">${t('claim')}</button>` : ''}${a.canUnclaim ? `<button class="btn lg" data-act="unclaim">${t('unclaim')}</button>` : ''}${a.canClose ? `<button class="btn lg danger" data-act="close">${t('close')}</button>` : ''}${a.canReopen ? `<button class="btn lg" data-act="reopen">${t('reopen')}</button>` : ''}</div>
+      </div>
+      <div class="chat big">${tk.messages.filter(m => m.role !== 'system').map(m => `<div class="msg ${m.authorId === S.me.user.id ? 'mine' : ''} ${m.role}"><img src="${esc(siteImg(m.avatar) || m.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt=""><div class="bubble"><div class="mh"><b>${esc(m.authorName || who(m))}</b>${who(m) ? `<span class="chip">${who(m)}</span>` : ''}<span class="faint">${timeAgo(m.at)}</span></div><div class="mt">${esc(m.text).replace(/\n/g, '<br>')}</div></div></div>`).join('')}</div>
+      ${a.canRate && !tk.rating ? `<div class="card card-b rate-box"><b>${t('rate')}</b><div class="row">${[1, 2, 3, 4, 5].map(n => `<button class="star-btn" data-rate="${n}" title="${n}">★</button>`).join('')}</div></div>` : tk.rating ? `<div class="card card-b rate-box"><span class="stars-big">${'★'.repeat(tk.rating)}${'☆'.repeat(5 - tk.rating)}</span> ${t('rated')}</div>` : ''}
+      ${a.canWrite || a.canNote ? `<form id="rForm" class="composer"><textarea name="text" rows="3" placeholder="${t('reply_ph')}"></textarea><div class="composer-bar">${a.canNote ? `<label class="row faint" style="gap:6px"><input type="checkbox" name="note" style="width:auto"> ${t('note')}</label>` : ''}<span class="faint" style="font-size:12.5px">${t('attach_hint')}</span><span class="spacer"></span><button class="btn primary lg">${ic('send', 'sm')} ${t('send')}</button></div></form>` : ''}`);
+    view.scrollTop = view.scrollHeight;
+    view.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => { try { tk = await api(`/api/tickets/${tk.id}/${b.dataset.act}`, { method: 'POST', body: {} }); draw(); } catch (err) { toast(err.message, 'err'); } });
+    view.querySelectorAll('[data-rate]').forEach(b => b.onclick = async () => { try { tk = await api(`/api/tickets/${tk.id}/rate`, { method: 'POST', body: { rating: Number(b.dataset.rate) } }); draw(); } catch (err) { toast(err.message, 'err'); } });
+    const f = $('#rForm');
+    if (f) {
+      const send = async () => { const text = f.text.value.trim(); if (!text) return; try { tk = await api(`/api/tickets/${tk.id}/messages`, { method: 'POST', body: { text, note: !!(f.note && f.note.checked) } }); draw(); } catch (err) { toast(err.message, 'err'); } };
+      f.onsubmit = e => { e.preventDefault(); send(); };
+      f.text.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+      f.text.focus();
+    }
+  };
+  draw();
+  const poll = setInterval(async () => { if (S.route !== 'ticket' || S.params.id !== id) return clearInterval(poll); const f = $('#rForm'); if (f && f.text.value) return; try { const fresh = await api('/api/tickets/' + encodeURIComponent(id)); if (fresh.messages.length !== tk.messages.length || fresh.status !== tk.status) { tk = fresh; draw(); } } catch { } }, 8000);
+};
+
+// admin screen in the router + sidebar (native instead of the web window)
+const _go2 = go;
+go = function (route, params, noHistory) {
+  if (route !== 'admin') return _go2(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && S.route !== 'admin') S.history.push([S.route, S.params]);
+  S.route = 'admin'; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav(); view.scrollTop = 0; view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(vAdmin(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _go2.seq;
+const _renderNav2 = renderNav;
+renderNav = function () {
+  _renderNav2();
+  const a = $('#nav [data-sitewin="/admin"]');
+  if (a) { const n = a.cloneNode(true); n.removeAttribute('data-sitewin'); n.dataset.go = 'admin'; n.classList.toggle('on', S.route === 'admin'); a.replaceWith(n); bindCommon($('#nav')); }
 };
 
 // a new app version: popup once per launch, plus the bar at the bottom
@@ -792,6 +899,54 @@ drawUpdate = function (st) {
 B.updateState().then(drawUpdate).catch(() => { });
 B.onUpdateState(st => drawUpdate(st));
 
+
+/* ================= maintenance mode ================= */
+// When the admin turns maintenance on, the server answers 503 {maintenance:true} to everyone except staff
+// and people on the allow list. The app then shows a maintenance screen and checks back by itself.
+Object.assign(I18N.he, { maint_title: 'Craft Hub בתחזוקה', maint_default: 'אנחנו משדרגים את Craft Hub — נחזור בקרוב. תודה על הסבלנות!', maint_check: 'בודק שוב…', maint_retry: 'נסה עכשיו', maint_auto: 'האפליקציה תחזור לבד כשהתחזוקה תסתיים', maint_staff: 'מצב תחזוקה פעיל — רק הצוות רואה את האפליקציה' });
+Object.assign(I18N.en, { maint_title: 'Craft Hub is under maintenance', maint_default: "We're upgrading Craft Hub — back soon. Thanks for your patience!", maint_check: 'Checking…', maint_retry: 'Try now', maint_auto: 'The app comes back by itself when maintenance ends', maint_staff: 'Maintenance is on — only staff can see the app' });
+const MAINT = { on: false, timer: null };
+function showMaintenance() {
+  if (MAINT.on) return;
+  MAINT.on = true;
+  const m = (S.site && S.site.maintenance) || {};
+  const msg = (LANG === 'en' && m.messageEn) || m.message || t('maint_default');
+  const el = document.createElement('div');
+  el.id = 'maintScreen';
+  el.innerHTML = `<div class="maint-in"><div class="maint-ic">${ic('tool', 'xl')}</div><h1>${t('maint_title')}</h1><p>${esc(msg)}</p>
+    <button class="btn primary lg" id="maintRetry">${ic('refresh', 'sm')} ${t('maint_retry')}</button><div class="faint" id="maintSt" style="margin-top:14px;font-size:14px">${t('maint_auto')}</div>
+    ${S.me && S.me.user ? '' : `<button class="btn ghost" id="maintLogin" style="margin-top:10px">${ic('user', 'sm')} ${t('login')}</button>`}</div>`;
+  document.body.appendChild(el);
+  $('#maintRetry').onclick = checkMaintenance;
+  const ml = $('#maintLogin'); if (ml) ml.onclick = async () => { await doLogin(); checkMaintenance(); };
+  MAINT.timer = setInterval(checkMaintenance, 30000);
+}
+async function checkMaintenance() {
+  const st = $('#maintSt'); if (st) st.textContent = t('maint_check');
+  const r = await B.api('/api/projects');
+  if (r.status === 200) {
+    MAINT.on = false; clearInterval(MAINT.timer);
+    const el = $('#maintScreen'); if (el) el.remove();
+    await loadMe(); go(S.route, S.params, true);
+  } else if (st) setTimeout(() => { st.textContent = t('maint_auto'); }, 800);
+}
+const _apiM = api;
+api = async function (path, opts) {
+  try { return await _apiM(path, opts); }
+  catch (e) { if (e.status === 503 && e.data && e.data.maintenance) showMaintenance(); throw e; }
+};
+// staff who can still get in see a small reminder bar
+function maintStaffBar() {
+  const on = S.site && S.site.maintenance && S.site.maintenance.enabled;
+  // regular users: the maintenance screen right away; staff / allow list: a reminder bar
+  if (on && S.me && !S.me.maintenanceAccess) { showMaintenance(); return; }
+  if (!on && MAINT.on) { checkMaintenance(); return; }
+  let bar = $('#maintStaffBar');
+  if (on && !MAINT.on) { if (!bar) { bar = document.createElement('div'); bar.id = 'maintStaffBar'; bar.innerHTML = `${ic('tool', 'sm')} ${t('maint_staff')}`; $('#main').insertBefore(bar, $('#view')); } }
+  else if (bar) bar.remove();
+}
+setInterval(() => api('/api/site').then(x => { S.site = x; maintStaffBar(); }).catch(() => { }), 60000);
+
 /* ---------- start ---------- */
 $('#backBtn').innerHTML = ic(flip());
 $('#backBtn').onclick = () => { const h = S.history.pop(); if (h) go(h[0], h[1], true); $('#backBtn').disabled = !S.history.length; };
@@ -804,5 +959,5 @@ setInterval(() => { if (offline) api('/api/site').then(() => go(S.route, S.param
 applyLang();
 drawBell();
 go('home', {}, true);
-api('/api/site').then(x => { S.site = x; applyAppearance(); if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
+api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
 loadMe();
