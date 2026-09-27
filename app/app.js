@@ -108,14 +108,14 @@ async function loadProjects(force) {
   return S.projects;
 }
 async function refreshInstalled() { try { S.installed = await B.installed(); } catch { S.installed = {}; } return S.installed; }
-const APP_TYPES = ['mod', 'resourcepack', 'shader', 'datapack', 'world', 'plugin'];
+const APP_TYPES = ['mod', 'resourcepack', 'shader', 'datapack', 'world', 'plugin', 'modpack'];
 function installState(p) {
   const x = S.installed[p.slug];
   if (!x) return 'none';
   return p.file && p.file.name && p.file.name !== x.file ? 'update' : 'installed';
 }
 function installBtn(p, cls = 'sm') {
-  if (!APP_TYPES.includes(p.type || 'plugin') || !p.file) return `<button class="btn ${cls}" data-site="/project/${esc(p.slug)}">${ic('ext', 'sm')} ${t('open_site')}</button>`;
+  if (!APP_TYPES.includes(p.type || 'plugin') || !p.file) return "";
   const st = installState(p);
   return st === 'installed' ? `<button class="btn ${cls} ok" data-inst="${esc(p.slug)}">${ic('check', 'sm')} ${t('installed')}</button>`
     : `<button class="btn ${cls} primary" data-inst="${esc(p.slug)}">${ic('download', 'sm')} ${st === 'update' ? t('update') : t('install')}</button>`;
@@ -247,7 +247,6 @@ async function vProject({ slug }, stale) {
       <div class="acts">
         ${installBtn(p, 'lg')}
         ${inst ? `<button class="btn lg" id="unBtn" title="${t('uninstall')}">${ic('trash', 'sm')}</button><button class="btn lg" id="folderBtn" title="${t('open_folder')}">${ic('folder', 'sm')}</button>` : ''}
-        <button class="btn lg" data-site="/project/${esc(p.slug)}" title="${t('open_site')}">${ic('ext', 'sm')}</button>
       </div>
     </section>
     <div class="play-layout">
@@ -422,7 +421,7 @@ async function vSettings(p, stale) {
         <div class="row"><input type="text" readonly class="mono ltr" value="${esc(s.pluginsDir || '—')}" style="font-size:12.5px"><button class="btn" id="plDir">${t('change')}</button></div>
       </div></div>
       <div class="card"><div class="card-h">${ic('refresh')}<h3>${t('app_version')}</h3><span class="chip mono">v${esc(s.version)}</span></div><div class="card-b row" style="flex-wrap:wrap">
-        <button class="btn" id="updBtn">${ic('refresh', 'sm')} ${t('check_updates')}</button><button class="btn" data-ext="${esc(B.site)}">${ic('ext', 'sm')} ${t('website')}</button><button class="btn" data-ext="https://discord.gg/ZW4uCt4yQ">${t('discord')}</button>
+        <button class="btn" id="updBtn">${ic('refresh', 'sm')} ${t('check_updates')}</button><button class="btn" data-ext="https://discord.gg/ZW4uCt4yQ">${t('discord')}</button>
       </div></div>
     </div>`);
   const i = $('#inBtn'); if (i) i.onclick = async () => { await doLogin(); go('settings', {}, true); };
@@ -461,7 +460,7 @@ $('#bellBtn').onclick = async e => {
 document.addEventListener('click', () => $('#notifMenu').classList.remove('open'));
 function openLink(l) {
   const mp = String(l || '').match(/^\/project\/([\w-]+)/), ms = String(l || '').match(/^\/server\/([\w-]+)/);
-  if (mp) go('project', { slug: mp[1] }); else if (ms) go('server', { slug: ms[1] }); else if (l) B.openExternal(B.site + l);
+  if (mp) go('project', { slug: mp[1] }); else if (ms) go('server', { slug: ms[1] });
 }
 setInterval(async () => {
   if (!S.me || !S.me.user) return;
@@ -646,7 +645,7 @@ async function vUser({ id }, stale) {
 openLink = function (l) {
   const m = String(l || '').match(/^\/(project|server|ticket|user)\/([\w:.-]+)/);
   if (m) go(m[1], m[1] === 'ticket' || m[1] === 'user' ? { id: decodeURIComponent(m[2]) } : { slug: m[2] });
-  else if (l) B.openExternal(B.site + l);
+ 
 };
 
 

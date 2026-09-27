@@ -94,19 +94,26 @@ ipcMain.handle('api', (e, { path: p, method, body } = {}) => {
   if (method && !['GET', 'POST', 'PUT', 'DELETE'].includes(method)) return { status: 400 };
   return siteRequest(p, { method, body });
 });
-// sign in: a small window with the real site's login (Discord / Google / email). Closes itself once signed in.
+// sign in: a small window with the Craft Hub login page (Discord / Google / email). Closes itself once signed in.
 ipcMain.handle('login', e => new Promise(resolve => {
   if (!trusted(e)) return resolve(false);
   const w = new BrowserWindow({ parent: win, modal: true, width: 540, height: 760, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', webPreferences: { contextIsolation: true, sandbox: true } });
   // Google refuses sign-in inside apps that announce themselves — use a plain Chrome user agent here
   w.webContents.setUserAgent(w.webContents.getUserAgent().replace(/\s(Electron|crafthub-app|Craft Hub)\/\S+/gi, ''));
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  w.webContents.on('did-finish-load', () => { if (isSite(w.webContents.getURL())) w.webContents.executeJavaScript('setTimeout(() => { try { openLogin(); } catch (e) {} }, 700)').catch(() => { }); });
   let finished = false;
   const done = ok => { if (finished) return; finished = true; clearInterval(timer); if (!w.isDestroyed()) w.close(); resolve(ok); };
   const timer = setInterval(async () => { const r = await siteRequest('/api/me'); if (r.data && r.data.user) done(true); }, 1500);
   w.on('closed', () => done(false));
-  w.loadURL(SITE + '/');
+  // servers that don't have /login yet: fall back to the old site's login window
+  w.webContents.on('did-finish-load', async () => {
+    const u = new URL(w.webContents.getURL());
+    if (!isSite(u.href)) return;
+    const hasPage = await w.webContents.executeJavaScript("!!document.getElementById('choose') || typeof openLogin === 'function'").catch(() => true);
+    if (u.pathname === '/login' && !hasPage) w.loadURL(SITE + '/');
+    else if (u.pathname === '/') w.webContents.executeJavaScript("setTimeout(() => { try { if (typeof openLogin === 'function') openLogin(); } catch (e) {} }, 700)").catch(() => { });
+  });
+  w.loadURL(SITE + '/login');
 }));
 ipcMain.handle('logout', async e => {
   if (!trusted(e)) return false;
@@ -126,6 +133,7 @@ ipcMain.handle('open-site-window', (e, p) => {
   const w = new BrowserWindow({ width: 1280, height: 860, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', icon: path.join(__dirname, 'build', 'icon.png'), webPreferences: { contextIsolation: true, sandbox: true } });
   w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   w.webContents.on('will-navigate', (ev, url) => { if (!isSite(url)) { ev.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
+  w.webContents.setUserAgent(`${w.webContents.getUserAgent()} CraftHubApp/${app.getVersion()}`);
   siteWindows.set(key, w);
   w.loadURL(SITE + p);
   return true;
