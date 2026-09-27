@@ -132,7 +132,17 @@ async function doInstall(slug, btn) {
     const r = await B.install({ slug, type: p.type || 'plugin', name: p.name });
     if (r.ok) { await refreshInstalled(); toast(t('install_ok')); btn.outerHTML = installBtn(p, btn.classList.contains('lg') ? 'lg' : 'sm'); bindCommon(); }
     else { btn.disabled = false; btn.innerHTML = orig; }
-  } catch { btn.disabled = false; btn.innerHTML = orig; toast(t('install_err'), 'err'); }
+  } catch (err) {
+    btn.disabled = false; btn.innerHTML = orig;
+    // say why, not just "failed"
+    const m = String(err && err.message || ''), he = LANG === 'he';
+    const why = /http_503/.test(m) ? (he ? 'האתר בתחזוקה — ההורדות סגורות כרגע' : 'The site is in maintenance — downloads are closed')
+      : /http_404/.test(m) ? (he ? 'הקובץ לא נמצא בשרת' : 'The file was not found on the server')
+      : /http_40[13]/.test(m) ? (he ? 'אין לך הרשאה להוריד את זה' : 'You are not allowed to download this')
+      : /timeout|ERR_|ENOTFOUND|ECONN/.test(m) ? (he ? 'אין חיבור לשרת' : 'No connection to the server')
+      : /EPERM|EACCES|EBUSY/.test(m) ? (he ? 'אין גישה לתיקייה (אולי מיינקראפט פתוח?)' : 'No access to the folder (is Minecraft open?)') : '';
+    toast(t('install_err') + (why ? ' — ' + why : ''), 'err');
+  }
   off();
 }
 function bindCommon(root = document) {
@@ -385,7 +395,7 @@ async function vSettings(p, stale) {
       </div></div>
     </div>`);
   const i = $('#inBtn'); if (i) i.onclick = async () => { await doLogin(); go('settings', {}, true); };
-  const o = $('#outBtn'); if (o) o.onclick = async () => { await B.logout(); await loadMe(); go('settings', {}, true); };
+  const o = $('#outBtn'); if (o) o.onclick = async () => { if (!(await confirmLogout())) return; await B.logout(); await loadMe(); go('settings', {}, true); };
   view.querySelectorAll('[data-lang]').forEach(b => b.onclick = () => { LANG = b.dataset.lang; localStorage.setItem('lang', LANG); applyLang(); go('settings', {}, true); });
   view.querySelectorAll('[data-open]').forEach(b => b.onclick = () => B.openFolder(b.dataset.open));
   $('#mcDir').onclick = async () => { await B.chooseDir('minecraft'); go('settings', {}, true); };
@@ -2151,6 +2161,42 @@ api = async function (path, opts) {
   catch (err) { if (err.status === 403 && err.data && err.data.banned && err.data.banned.full) showBanScreen(err.data.banned); throw err; }
 };
 
+/* ================= loader (like the site) + sign-out confirmation ================= */
+Object.assign(I18N.he, { lo_title: 'להתנתק?', lo_text: 'בטוח שאתה רוצה להתנתק מהחשבון?', lo_yes: 'כן, התנתק', lo_no: 'ביטול' });
+Object.assign(I18N.en, { lo_title: 'Sign out?', lo_text: 'Are you sure you want to sign out of your account?', lo_yes: 'Yes, sign out', lo_no: 'Cancel' });
+function confirmLogout() {
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal-back';
+    m.innerHTML = `<div class="card lo-modal"><div class="lo-ic">${ic('logout', 'xl')}</div><h2>${t('lo_title')}</h2><p class="faint">${t('lo_text')}</p>
+      <div class="row" style="gap:10px;justify-content:center;margin-top:18px"><button class="btn danger lg" data-y>${ic('logout', 'sm')} ${t('lo_yes')}</button><button class="btn lg" data-n>${t('lo_no')}</button></div></div>`;
+    const close = v => { m.remove(); document.removeEventListener('keydown', key); resolve(v); };
+    const key = e => { if (e.key === 'Escape') close(false); };
+    m.querySelector('[data-y]').onclick = () => close(true);
+    m.querySelector('[data-n]').onclick = () => close(false);
+    m.onclick = e => { if (e.target === m) close(false); };
+    document.addEventListener('keydown', key);
+    document.body.appendChild(m);
+    m.querySelector('[data-n]').focus();
+  });
+}
+// the spinning Craft Hub loader: on launch, and for a moment when moving between pages
+const PL = { shownAt: 0, timer: null };
+function showLoader(ms) {
+  const pl = $('#preloader'); if (!pl) return;
+  clearTimeout(PL.timer);
+  pl.classList.remove('out');
+  PL.shownAt = Date.now();
+  PL.timer = setTimeout(hideLoader, ms);
+}
+function hideLoader() { const pl = $('#preloader'); if (pl) pl.classList.add('out'); }
+const _goPL = go;
+go = function (route, params, noHistory) {
+  const moving = route !== S.route || JSON.stringify(params || {}) !== JSON.stringify(S.params || {});
+  if (moving && S.started) showLoader(550);
+  return _goPL(route, params, noHistory);
+};
+go.seq = _goPL.seq;
+
 /* ================= start ================= */
 // runs last, so every view above is the newest version. Start right away; account and site info arrive in the background,
 // then the first screen is drawn again with them (home background, staff buttons).
@@ -2161,3 +2207,5 @@ Promise.all([
   api('/api/site').then(x => { S.site = x; applyAppearance(); maintStaffBar(); }).catch(() => { }),
   loadMe()
 ]).then(() => { if (['home', 'discover'].includes(S.route)) go(S.route, S.params, true); });
+S.started = true;
+PL.timer = setTimeout(hideLoader, 1000);

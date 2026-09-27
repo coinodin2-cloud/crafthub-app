@@ -186,31 +186,35 @@ ipcMain.handle('upload-file', async (e, { apiPath, field = 'file', fields = {}, 
 });
 
 // ---------- downloads ----------
-function download(url, dest, onProgress, redirects = 0) {
+// goes through Electron's net with the signed-in session, so the site knows who is downloading
+// (staff can still download while the site is in maintenance, and private files work)
+function download(url, dest, onProgress) {
   return new Promise((resolve, reject) => {
-    const lib = url.startsWith('https:') ? https : http;
-    const req = lib.get(url, { headers: { 'User-Agent': `CraftHubApp/${app.getVersion()}` } }, res => {
-      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirects < 5) {
-        res.resume();
-        const next = new URL(res.headers.location, url).toString();
-        if (!isSite(next)) return reject(new Error('redirect_outside'));
-        return resolve(download(next, dest, onProgress, redirects + 1));
-      }
-      if (res.statusCode !== 200) { res.resume(); return reject(new Error('http_' + res.statusCode)); }
-      const total = Number(res.headers['content-length']) || 0;
+    let done = false, idle;
+    const fail = err => { if (done) return; done = true; clearTimeout(idle); try { req.abort(); } catch { } reject(err); };
+    const touch = () => { clearTimeout(idle); idle = setTimeout(() => fail(new Error('timeout')), 30000); };
+    const req = net.request({ url, useSessionCookies: true, redirect: 'manual' });
+    req.setHeader('User-Agent', `CraftHubApp/${app.getVersion()}`);
+    req.on('redirect', (status, method, next) => { if (!isSite(next)) return fail(new Error('redirect_outside')); req.followRedirect(); });
+    req.on('response', res => {
+      touch();
+      const h = k => [].concat(res.headers[k] || '')[0] || '';
+      if (res.statusCode !== 200) { res.on('data', () => { }); return fail(new Error('http_' + res.statusCode)); }
+      const total = Number(h('content-length')) || 0;
       let got = 0;
-      const cd = res.headers['content-disposition'] || '';
+      const cd = h('content-disposition');
       const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
       const fileName = m ? decodeURIComponent(m[1]) : '';
       const tmp = dest + '.part';
       const out = fs.createWriteStream(tmp);
-      res.on('data', c => { got += c.length; if (total) onProgress(got / total); });
-      res.pipe(out);
-      out.on('finish', () => out.close(() => resolve({ tmp, fileName })));
-      out.on('error', reject);
+      out.on('error', fail);
+      res.on('data', c => { touch(); got += c.length; out.write(c); if (total) onProgress(got / total); });
+      res.on('end', () => { if (done) return; done = true; clearTimeout(idle); out.end(() => resolve({ tmp, fileName })); });
+      res.on('error', fail);
     });
-    req.on('error', reject);
-    req.setTimeout(30000, () => req.destroy(new Error('timeout')));
+    req.on('error', fail);
+    touch();
+    req.end();
   });
 }
 
