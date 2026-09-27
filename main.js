@@ -116,6 +116,20 @@ ipcMain.handle('logout', async e => {
 });
 ipcMain.handle('open-external', (e, url) => { if (trusted(e) && /^https?:\/\/[^\s]+$/i.test(String(url))) shell.openExternal(String(url)); });
 ipcMain.on('site-url', e => { e.returnValue = SITE; });
+// the admin panel and the upload studio are big web tools — they open in their own window of the app
+const siteWindows = new Map();
+ipcMain.handle('open-site-window', (e, p) => {
+  if (!trusted(e) || !/^\/(admin|dashboard)(\/[\w-]*)*$/.test(String(p))) return false;
+  const key = String(p).split('/')[1];
+  const old = siteWindows.get(key);
+  if (old && !old.isDestroyed()) { old.loadURL(SITE + p); old.focus(); return true; }
+  const w = new BrowserWindow({ width: 1280, height: 860, backgroundColor: '#0b0b0f', autoHideMenuBar: true, title: 'Craft Hub', icon: path.join(__dirname, 'build', 'icon.png'), webPreferences: { contextIsolation: true, sandbox: true } });
+  w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  w.webContents.on('will-navigate', (ev, url) => { if (!isSite(url)) { ev.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); } });
+  siteWindows.set(key, w);
+  w.loadURL(SITE + p);
+  return true;
+});
 
 // ---------- downloads ----------
 function download(url, dest, onProgress, redirects = 0) {

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('craftHubApp', {
   login: () => ipcRenderer.invoke('login'),
   logout: () => ipcRenderer.invoke('logout'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openSiteWindow: (p) => ipcRenderer.invoke('open-site-window', p),
   onNotificationClick: (fn) => ipcRenderer.on('notif-click', (e, link) => fn(link)),
   platform: process.platform,
   install: (opts) => ipcRenderer.invoke('install', opts),

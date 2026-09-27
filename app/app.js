@@ -241,7 +241,7 @@ async function vProject({ slug }, stale) {
           <span class="stat">${ic('download', 'sm')} <b>${fmtNum(p.downloads)}</b> ${t('downloads')}</span>
           ${p.likes ? `<span class="stat">${ic('heart', 'sm')} ${fmtNum(p.likes)}</span>` : ''}
           <span class="chip accent">${esc(typeName(p.type || 'plugin'))}</span>${p.category ? `<span class="chip">${esc(p.category)}</span>` : ''}
-          ${p.owner && p.owner.name ? `<span>${esc(t('by', p.owner.name))}</span>` : ''}
+          ${p.owner && p.owner.name ? `<a class="link" data-go="user:id:${esc(p.owner.id)}">${esc(t('by', p.owner.name))}</a>` : ''}
         </div>
       </div>
       <div class="acts">
@@ -486,6 +486,169 @@ function drawUpdate(st) {
 B.updateState().then(drawUpdate).catch(() => { });
 B.onUpdateState(drawUpdate);
 
+
+/* ================= more screens: updates, support tickets, creators, profiles ================= */
+Object.assign(I18N.he, {
+  updates: 'עדכונים', updates_sub: 'מה חדש ב-Craft Hub', no_updates: 'עוד אין עדכונים', support: 'תמיכה', creators: 'קרייטורים', admin: 'פאנל ניהול', upload: 'העלאת פרויקט',
+  tickets_sub: 'פתחו טיקט והצוות יענה לכם', new_ticket: 'טיקט חדש', my_tickets: 'הטיקטים שלי', all_tickets: 'כל הטיקטים', no_tickets: 'אין טיקטים', subject: 'נושא', message: 'הודעה', category: 'קטגוריה', project_opt: 'פרויקט (לא חובה)', send: 'שליחה', ticket_created: 'הטיקט נפתח ✓',
+  st_open: 'פתוח', st_closed: 'סגור', claim: 'לקחתי', unclaim: 'שחרר', close: 'סגירה', reopen: 'פתיחה מחדש', note: 'הערה פנימית', reply_ph: 'כתוב תשובה…', claimed_by: 'בטיפול של {x}', rate: 'איך היה השירות?', rated: 'תודה על הדירוג!', staff: 'צוות', bot: 'בוט', you: 'אתה',
+  cat_support: 'תמיכה', cat_bug: 'באג', cat_suggestion: 'הצעה', cat_report: 'דיווח', cat_other: 'אחר', need_login: 'צריך להתחבר', search_people: 'חיפוש משתמשים…', followers: 'עוקבים', following: 'במעקב', follow: 'עקוב', projects: 'פרויקטים', creator: 'קרייטור', member: 'משתמש',
+  admin_hint: 'פאנל הניהול נפתח בחלון נפרד'
+});
+Object.assign(I18N.en, {
+  updates: 'Updates', updates_sub: "What's new on Craft Hub", no_updates: 'No updates yet', support: 'Support', creators: 'Creators', admin: 'Admin panel', upload: 'Upload project',
+  tickets_sub: 'Open a ticket and the team will answer', new_ticket: 'New ticket', my_tickets: 'My tickets', all_tickets: 'All tickets', no_tickets: 'No tickets', subject: 'Subject', message: 'Message', category: 'Category', project_opt: 'Project (optional)', send: 'Send', ticket_created: 'Ticket opened ✓',
+  st_open: 'Open', st_closed: 'Closed', claim: 'Claim', unclaim: 'Unclaim', close: 'Close', reopen: 'Reopen', note: 'Internal note', reply_ph: 'Write a reply…', claimed_by: 'Handled by {x}', rate: 'How was the support?', rated: 'Thanks for rating!', staff: 'Staff', bot: 'Bot', you: 'You',
+  cat_support: 'Support', cat_bug: 'Bug', cat_suggestion: 'Suggestion', cat_report: 'Report', cat_other: 'Other', need_login: 'Sign in first', search_people: 'Search users…', followers: 'Followers', following: 'Following', follow: 'Follow', projects: 'Projects', creator: 'Creator', member: 'Member',
+  admin_hint: 'The admin panel opens in its own window'
+});
+Object.assign(ICONS, {
+  megaphone: '<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a5 5 0 0 1 0 8M18 5a9 9 0 0 1 0 14"/>',
+  ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M13 6v12"/>',
+  users: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-5-6.7"/>',
+  shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/>', upload: '<path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/>', send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+});
+
+// sidebar: second group of screens
+const NAV2 = [['creators', 'users'], ['updates', 'megaphone'], ['support', 'ticket']];
+const _renderNav = renderNav;
+renderNav = function () {
+  _renderNav();
+  const r = { ticket: 'support', user: 'creators' }[S.route] || S.route;
+  const me = S.me || {};
+  const extra = NAV2.map(([k, i]) => `<a href="#" data-go="${k}" class="${r === k ? 'on' : ''}">${ic(i)} ${t(k)}</a>`).join('')
+    + (me.canUpload ? `<a href="#" data-sitewin="/dashboard/new">${ic('upload')} ${t('upload')}</a>` : '')
+    + ((me.perms || []).length ? `<a href="#" data-sitewin="/admin">${ic('shield')} ${t('admin')}</a>` : '');
+  $('#nav').insertAdjacentHTML('beforeend', `<div class="sep"></div>${extra}`);
+  $('#nav').querySelectorAll('[data-sitewin]').forEach(a => a.onclick = e => { e.preventDefault(); B.openSiteWindow(a.dataset.sitewin); });
+  bindCommon($('#nav'));
+};
+const _go = go;
+go = function (route, params, noHistory) {
+  const fn = { updates: vUpdates, support: vTickets, ticket: vTicket, creators: vCreators, user: vUser }[route];
+  if (!fn) return _go(route, params, noHistory);
+  params = params || {};
+  if (!noHistory && (S.route !== route || JSON.stringify(S.params) !== JSON.stringify(params))) S.history.push([S.route, S.params]);
+  S.route = route; S.params = params;
+  $('#backBtn').disabled = !S.history.length;
+  renderNav();
+  view.scrollTop = 0;
+  view.innerHTML = '<div class="spin"></div>';
+  const seq = ++go.seq;
+  Promise.resolve(fn(params, () => seq !== go.seq)).catch(err => { if (seq === go.seq) view.innerHTML = `<div class="view-in">${emptyBox('wifi', t('error'), err.message)}</div>`; });
+};
+go.seq = _go.seq;
+
+// site look: background image, dim and the announcement line (set in the site's admin panel)
+function applyAppearance() {
+  const a = (S.site && S.site.appearance) || {};
+  const bg = $('#bgimg');
+  if (a.backgroundUrl && /^https:\/\//.test(a.backgroundUrl)) { bg.style.backgroundImage = `url("${a.backgroundUrl.replace(/"/g, '')}")`; bg.style.opacity = String(1 - Math.min(95, Math.max(0, a.backgroundDim ?? 70)) / 100); bg.hidden = false; }
+  else bg.hidden = true;
+  const ann = $('#announce');
+  const text = S.site && (LANG === 'en' && S.site.translations && S.site.translations.en && S.site.translations.en.announcement || S.site.announcement);
+  ann.hidden = !(a.announcementEnabled && text && localStorage.getItem('ann_x') !== text);
+  if (!ann.hidden) { ann.innerHTML = `${ic('megaphone', 'sm')}<span>${esc(text)}</span><button class="icon-btn" id="annX">✕</button>`; $('#annX').onclick = () => { localStorage.setItem('ann_x', text); ann.hidden = true; }; }
+}
+
+async function vUpdates(p, stale) {
+  const list = await api('/api/updates');
+  if (stale()) return;
+  const tagName = { new: LANG === 'he' ? 'חדש' : 'New', improve: LANG === 'he' ? 'שיפור' : 'Improvement', fix: LANG === 'he' ? 'תיקון' : 'Fix', announce: LANG === 'he' ? 'הכרזה' : 'Announcement', event: LANG === 'he' ? 'אירוע' : 'Event' };
+  put(`<div class="head"><div><h1>${t('updates')}</h1><p>${t('updates_sub')}</p></div></div>
+    <div class="stack" style="max-width:820px">${list.length ? list.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.at - a.at).map(u => `
+      <article class="card card-b"><div class="row"><span class="chip accent">${esc(tagName[u.tag] || u.tag)}</span>${u.pinned ? '<span class="chip">📌</span>' : ''}<span class="spacer"></span><span class="faint" style="font-size:12.5px">${fmtDate(u.at)}</span></div>
+        <h2 style="margin:12px 0 8px">${esc(LANG === 'en' && u.titleEn ? u.titleEn : u.title)}</h2><div class="md">${md(LANG === 'en' && u.bodyEn ? u.bodyEn : u.body)}</div></article>`).join('') : emptyBox('megaphone', t('no_updates'))}</div>`);
+}
+
+const needLogin = () => put(`<div class="empty">${ic('lock')}<b>${t('need_login')}</b><button class="btn primary" id="nlBtn" style="margin-top:12px">${ic('user', 'sm')} ${t('login')}</button></div>`) || ($('#nlBtn').onclick = async () => { if (await doLogin()) go(S.route, S.params, true); });
+let TK_SCOPE = 'mine';
+async function vTickets(p, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  const staff = (S.me.perms || []).includes('tickets.view');
+  const [list, projects] = await Promise.all([api('/api/tickets' + (staff && TK_SCOPE === 'all' ? '?scope=all' : '')), loadProjects()]);
+  if (stale()) return;
+  const cats = (S.site && S.site.ticketCategories) || ['support', 'bug', 'suggestion', 'report', 'other'];
+  put(`<div class="head"><div><h1>${t('support')}</h1><p>${t('tickets_sub')}</p></div></div>
+    <div class="play-layout">
+      <div>
+        ${staff ? `<div class="tabs"><button data-scope="mine" class="${TK_SCOPE === 'mine' ? 'on' : ''}">${t('my_tickets')}</button><button data-scope="all" class="${TK_SCOPE === 'all' ? 'on' : ''}">${t('all_tickets')}</button></div>` : ''}
+        <div class="stack" style="gap:8px">${list.length ? list.map(tk => `<div class="srv" data-go="ticket:id:${tk.id}"><span class="chip ${tk.status === 'open' ? 'accent' : ''}">${t('st_' + tk.status)}</span><div class="body"><b>#${tk.id} · ${esc(tk.subject)}</b><p>${esc(tk.lastMessage ? tk.lastMessage.text : '')}</p></div><span class="faint" style="font-size:12px">${timeAgo(tk.updatedAt)}</span></div>`).join('') : emptyBox('ticket', t('no_tickets'))}</div>
+      </div>
+      <form class="card" id="tkForm"><div class="card-h">${ic('plus')}<h3>${t('new_ticket')}</h3></div><div class="card-b stack" style="gap:10px">
+        <label class="faint" style="font-size:12.5px">${t('subject')}</label><input type="text" name="subject" maxlength="120" required>
+        <label class="faint" style="font-size:12.5px">${t('category')}</label><select name="category">${cats.map(c => `<option value="${c}">${t('cat_' + c)}</option>`).join('')}</select>
+        <label class="faint" style="font-size:12.5px">${t('project_opt')}</label><select name="project"><option value="">—</option>${projects.map(x => `<option value="${esc(x.slug)}">${esc(x.name)}</option>`).join('')}</select>
+        <label class="faint" style="font-size:12.5px">${t('message')}</label><textarea name="message" rows="5" required style="height:auto;padding:10px 12px"></textarea>
+        <button class="btn primary">${ic('send', 'sm')} ${t('send')}</button></div></form>
+    </div>`);
+  view.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => { TK_SCOPE = b.dataset.scope; go('support', {}, true); });
+  $('#tkForm').onsubmit = async e => {
+    e.preventDefault(); const f = e.target, btn = f.querySelector('button'); btn.disabled = true;
+    try { const r = await api('/api/tickets', { method: 'POST', body: { subject: f.subject.value.trim(), category: f.category.value, project: f.project.value, message: f.message.value.trim() } }); toast(t('ticket_created')); go('ticket', { id: String(r.id) }); }
+    catch (err) { toast(err.message, 'err'); btn.disabled = false; }
+  };
+}
+async function vTicket({ id }, stale) {
+  if (!S.me || !S.me.user) return needLogin();
+  let tk = await api('/api/tickets/' + encodeURIComponent(id));
+  if (stale()) return;
+  const draw = () => {
+    const a = tk.actions || {};
+    const who = m => m.role === 'staff' ? t('staff') : m.role === 'bot' ? t('bot') : m.role === 'note' ? t('note') : m.authorId === S.me.user.id ? t('you') : '';
+    put(`<div class="head"><div><h1>#${tk.id} · ${esc(tk.subject)}</h1><p><span class="chip ${tk.status === 'open' ? 'accent' : ''}">${t('st_' + tk.status)}</span> <span class="chip">${t('cat_' + tk.category)}</span> ${tk.claimedBy ? `<span class="faint">${esc(t('claimed_by', tk.claimedBy.name))}</span>` : ''}</p></div><span class="spacer"></span>
+        ${a.canClaim ? `<button class="btn" data-act="claim">${t('claim')}</button>` : ''}${a.canUnclaim ? `<button class="btn" data-act="unclaim">${t('unclaim')}</button>` : ''}${a.canClose ? `<button class="btn danger" data-act="close">${t('close')}</button>` : ''}${a.canReopen ? `<button class="btn" data-act="reopen">${t('reopen')}</button>` : ''}</div>
+      <div class="chat">${tk.messages.filter(m => m.role !== 'system').map(m => `<div class="msg ${m.authorId === S.me.user.id ? 'mine' : ''} ${m.role}"><img src="${esc(siteImg(m.avatar) || m.avatar || '')}" alt=""><div class="bubble"><div class="mh"><b>${esc(m.authorName || who(m))}</b>${who(m) && m.authorName ? `<span class="chip">${who(m)}</span>` : ''}<span class="faint">${timeAgo(m.at)}</span></div><div class="mt">${esc(m.text).replace(/\n/g, '<br>')}</div></div></div>`).join('')}</div>
+      ${a.canWrite || a.canNote ? `<form id="rForm" class="card card-b row" style="align-items:flex-end"><textarea name="text" rows="2" placeholder="${t('reply_ph')}" style="height:auto;padding:10px 12px;flex:1"></textarea>${a.canNote ? `<label class="row faint" style="gap:6px;font-size:12.5px;white-space:nowrap"><input type="checkbox" name="note"> ${t('note')}</label>` : ''}<button class="btn primary">${ic('send', 'sm')}</button></form>` : ''}
+      ${a.canRate && !tk.rating ? `<div class="card card-b row" style="margin-top:12px"><b>${t('rate')}</b><span class="spacer"></span>${[1, 2, 3, 4, 5].map(n => `<button class="btn sm" data-rate="${n}">${'★'.repeat(n)}</button>`).join('')}</div>` : tk.rating ? `<p class="faint">${'★'.repeat(tk.rating)} ${t('rated')}</p>` : ''}`);
+    const chat = view.querySelector('.chat'); if (chat) view.scrollTop = view.scrollHeight;
+    view.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => { try { tk = await api(`/api/tickets/${tk.id}/${b.dataset.act}`, { method: 'POST', body: {} }); draw(); } catch (err) { toast(err.message, 'err'); } });
+    view.querySelectorAll('[data-rate]').forEach(b => b.onclick = async () => { try { tk = await api(`/api/tickets/${tk.id}/rate`, { method: 'POST', body: { rating: Number(b.dataset.rate) } }); draw(); } catch (err) { toast(err.message, 'err'); } });
+    const f = $('#rForm');
+    if (f) f.onsubmit = async e => { e.preventDefault(); const text = f.text.value.trim(); if (!text) return; try { tk = await api(`/api/tickets/${tk.id}/messages`, { method: 'POST', body: { text, note: !!(f.note && f.note.checked) } }); draw(); } catch (err) { toast(err.message, 'err'); } };
+  };
+  draw();
+  // new replies show up while the ticket is open
+  const poll = setInterval(async () => { if (S.route !== 'ticket' || S.params.id !== id) return clearInterval(poll); const f = $('#rForm'); if (f && f.text.value) return; try { const fresh = await api('/api/tickets/' + encodeURIComponent(id)); if (fresh.messages.length !== tk.messages.length || fresh.status !== tk.status) { tk = fresh; draw(); } } catch { } }, 10000);
+}
+
+function personRow(u) {
+  return `<div class="srv" data-go="user:id:${esc(u.id)}"><img src="${esc(siteImg(u.avatar) || u.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover"><div class="body"><b>${esc(u.name)}</b><p>${u.creator ? t('creator') : t('member')}${u.projectCount != null ? ` · ${fmtNum(u.projectCount)} ${t('projects')}` : ''}</p></div><span class="faint" style="font-size:12.5px">${fmtNum(u.followers || 0)} ${t('followers')}</span></div>`;
+}
+async function vCreators(p, stale) {
+  const list = await api('/api/creators');
+  if (stale()) return;
+  put(`<div class="head"><h1>${t('creators')}</h1><span class="spacer"></span><input type="search" id="pplQ" placeholder="${t('search_people')}" style="width:280px"></div>
+    <div class="stack" style="gap:8px" id="pplList">${list.map(c => personRow({ ...c, creator: true })).join('') || emptyBox('users', t('no_results'))}</div>`);
+  let timer;
+  $('#pplQ').oninput = e => {
+    clearTimeout(timer); const q = e.target.value.trim();
+    timer = setTimeout(async () => {
+      const res = q.length < 2 ? list.map(c => ({ ...c, creator: true })) : await api('/api/search/users?q=' + encodeURIComponent(q)).catch(() => []);
+      $('#pplList').innerHTML = res.length ? res.map(personRow).join('') : emptyBox('search', t('no_results')); bindCommon($('#pplList'));
+    }, 250);
+  };
+}
+async function vUser({ id }, stale) {
+  const [u] = await Promise.all([api('/api/users/' + encodeURIComponent(id)), refreshInstalled()]);
+  if (stale()) return;
+  const mine = S.me && S.me.user && S.me.user.id === u.id;
+  put(`<section class="phead"><img src="${esc(siteImg(u.avatar) || u.avatar || '')}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover">
+      <div class="meta"><h1>${esc(u.name)}</h1><div class="sub">${u.creator ? `<span class="chip accent">${t('creator')}</span>` : `<span class="chip">${t('member')}</span>`}</div>${u.bio ? `<p class="faint" style="margin:0">${esc(u.bio)}</p>` : ''}
+        <div class="row" style="gap:16px;margin-top:10px;font-size:13.5px"><span><b id="fN">${fmtNum(u.followers || 0)}</b> ${t('followers')}</span><span><b>${fmtNum(u.projectCount || 0)}</b> ${t('projects')}</span><span class="stat">${ic('download', 'sm')} ${fmtNum(u.downloads || 0)}</span></div></div>
+      ${!mine && S.me && S.me.user ? `<button class="btn ${u.following ? 'ok' : 'primary'}" id="flw">${u.following ? `${ic('check', 'sm')} ${t('following')}` : `${ic('plus', 'sm')} ${t('follow')}`}</button>` : ''}</section>
+    <div class="grid">${(u.projects || []).map(projectCard).join('')}</div>`);
+  const f = $('#flw');
+  if (f) f.onclick = async () => { try { const r = await api(`/api/users/${encodeURIComponent(u.id)}/follow`, { method: 'POST', body: {} }); u.following = r.following; $('#fN').textContent = fmtNum(r.followers); f.className = 'btn ' + (r.following ? 'ok' : 'primary'); f.innerHTML = r.following ? `${ic('check', 'sm')} ${t('following')}` : `${ic('plus', 'sm')} ${t('follow')}`; } catch (err) { toast(err.message, 'err'); } };
+}
+
+// notification links: tickets and profiles open inside the app too
+openLink = function (l) {
+  const m = String(l || '').match(/^\/(project|server|ticket|user)\/([\w:.-]+)/);
+  if (m) go(m[1], m[1] === 'ticket' || m[1] === 'user' ? { id: decodeURIComponent(m[2]) } : { slug: m[2] });
+  else if (l) B.openExternal(B.site + l);
+};
+
 /* ---------- start ---------- */
 $('#backBtn').innerHTML = ic(flip());
 $('#backBtn').onclick = () => { const h = S.history.pop(); if (h) go(h[0], h[1], true); $('#backBtn').disabled = !S.history.length; };
@@ -498,5 +661,5 @@ setInterval(() => { if (offline) api('/api/site').then(() => go(S.route, S.param
 applyLang();
 drawBell();
 go('home', {}, true);
-api('/api/site').then(x => { S.site = x; if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
+api('/api/site').then(x => { S.site = x; applyAppearance(); if (S.route === 'discover') go('discover', {}, true); }).catch(() => { });
 loadMe();
