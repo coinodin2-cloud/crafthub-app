@@ -2342,7 +2342,7 @@ async function vMessages(p, stale) {
     const ta = f.text;
     ta.focus();
     ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); f.requestSubmit(); } };
-    f.onsubmit = async e => { e.preventDefault(); const v = ta.value.trim(); if (!v) return; ta.value = ''; try { add([await api('/api/dm/' + encodeURIComponent(w.id), { method: 'POST', body: { text: v } })]); } catch (err) { ta.value = v; toast(err.message, 'err'); } };
+    f.onsubmit = async e => { e.preventDefault(); const v = ta.value.trim(); if (!v) return; ta.value = ''; try { add([await api('/api/dm/' + encodeURIComponent(w.id), { method: 'POST', body: { text: v } })]); api('/api/dm').then(drawList).catch(() => { }); } catch (err) { ta.value = v; toast(err.message, 'err'); } };
   }
   clearInterval(DM.timer);
   DM.timer = setInterval(async () => {
@@ -2861,6 +2861,101 @@ vSettings = async function (p, stale) {
   // leaving the settings page releases the microphone / camera
   const stopOnLeave = setInterval(() => { if (S.route !== 'settings' || !document.body.contains($('#avCard') || document.createElement('i'))) { clearInterval(stopOnLeave); stopAll(); } }, 1000);
 };
+
+/* ================= @mentions ================= */
+// in the text box people see "@Name"; when the form is sent it becomes @[Name](id), which the server turns into a notification
+const MENTION_TOKEN = /@\[([^\]\n]{1,60})\]\(([\w:.@-]{3,80})\)/g;
+const MENTION = { box: null, input: null, items: [], idx: 0, start: 0, friends: null, timer: null };
+const mentionTargets = 'textarea, #rvF input[name="text"]';
+function mentionBox() {
+  if (!MENTION.box) { MENTION.box = document.createElement('div'); MENTION.box.id = 'mentionBox'; MENTION.box.hidden = true; document.body.appendChild(MENTION.box); }
+  return MENTION.box;
+}
+function closeMention() { if (MENTION.box) MENTION.box.hidden = true; MENTION.input = null; MENTION.items = []; }
+async function mentionCandidates(q) {
+  if (!MENTION.friends) { MENTION.friends = S.me && S.me.user ? (await api('/api/friends').catch(() => ({ friends: [] }))).friends : []; setTimeout(() => { MENTION.friends = null; }, 60000); }
+  const ql = q.toLowerCase();
+  let list = MENTION.friends.filter(f => !ql || f.name.toLowerCase().includes(ql));
+  if (q.length >= 2) { const more = await api('/api/search/users?q=' + encodeURIComponent(q)).catch(() => []); for (const u of more) if (!list.some(x => x.id === u.id)) list.push(u); }
+  const me = S.me && S.me.user && S.me.user.id;
+  return list.filter(u => u.id !== me && u.name).slice(0, 7);
+}
+function drawMention() {
+  const box = mentionBox(), el = MENTION.input;
+  if (!el || !MENTION.items.length) return (box.hidden = true);
+  const r = el.getBoundingClientRect();
+  box.innerHTML = MENTION.items.map((u, i) => `<button class="${i === MENTION.idx ? 'on' : ''}" data-i="${i}"><img src="${avatarOf(u)}" alt=""><b>${esc(u.name)}</b>${u.verified ? vcheck() : ''}${u.creator ? `<small>${t('creator')}</small>` : ''}</button>`).join('');
+  box.hidden = false;
+  const h = box.offsetHeight;
+  box.style.left = Math.max(8, Math.min(innerWidth - box.offsetWidth - 8, r.left)) + 'px';
+  box.style.top = (r.top - h - 6 > 8 ? r.top - h - 6 : r.bottom + 6) + 'px';
+  box.querySelectorAll('[data-i]').forEach(b => b.onmousedown = e => { e.preventDefault(); pickMention(+b.dataset.i); });
+}
+function pickMention(i) {
+  const u = MENTION.items[i], el = MENTION.input;
+  if (!u || !el) return;
+  const pos = el.selectionStart, before = el.value.slice(0, MENTION.start), after = el.value.slice(pos);
+  const label = '@' + u.name.replace(/[\[\]()\n]/g, '').slice(0, 60);
+  el.value = before + label + ' ' + after;
+  const caret = (before + label + ' ').length;
+  el.setSelectionRange(caret, caret);
+  (el._mentions = el._mentions || {})[label] = u.id;
+  closeMention(); el.focus();
+}
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el.matches || !el.matches(mentionTargets)) return;
+  const upto = el.value.slice(0, el.selectionStart), m = upto.match(/(^|\s)@([^\s@]{0,24})$/);
+  if (!m) return closeMention();
+  MENTION.input = el; MENTION.start = upto.length - m[2].length - 1;
+  clearTimeout(MENTION.timer);
+  MENTION.timer = setTimeout(async () => { const q = m[2]; const items = await mentionCandidates(q); if (MENTION.input !== el) return; MENTION.items = items; MENTION.idx = 0; drawMention(); }, 120);
+});
+// keys work while the list is open (capture: before the chat's own Enter-to-send)
+document.addEventListener('keydown', e => {
+  if (!MENTION.input || !MENTION.box || MENTION.box.hidden || e.target !== MENTION.input) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); MENTION.idx = (MENTION.idx + (e.key === 'ArrowDown' ? 1 : -1) + MENTION.items.length) % MENTION.items.length; drawMention(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); pickMention(MENTION.idx); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeMention(); }
+}, true);
+document.addEventListener('focusout', e => { if (e.target === MENTION.input) setTimeout(closeMention, 150); });
+// just before any form is sent: "@Name" -> "@[Name](id)" (capture runs before the form's own handler)
+document.addEventListener('submit', e => {
+  e.target.querySelectorAll(mentionTargets).forEach(el => {
+    if (!el._mentions) return;
+    for (const [label, id] of Object.entries(el._mentions)) el.value = el.value.split(label).join(`@[${label.slice(1)}](${id})`);
+    el._mentions = null;
+  });
+}, true);
+// the chat buttons in some screens send without a form submit — cover the ticket composer's send button too
+document.addEventListener('click', e => {
+  const btn = e.target.closest && e.target.closest('.composer button, .composer .btn');
+  if (!btn) return;
+  const f = btn.closest('.composer'); if (!f) return;
+  f.querySelectorAll(mentionTargets).forEach(el => { if (!el._mentions) return; for (const [label, id] of Object.entries(el._mentions)) el.value = el.value.split(label).join(`@[${label.slice(1)}](${id})`); el._mentions = null; });
+}, true);
+
+// showing: @[Name](id) in any message / review becomes a link to the profile
+function linkMentions(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.includes('@[') && !n.parentElement.closest('textarea, input, .mention, script') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP });
+  const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const n of nodes) {
+    const txt = n.nodeValue; MENTION_TOKEN.lastIndex = 0;
+    if (!MENTION_TOKEN.test(txt)) continue;
+    MENTION_TOKEN.lastIndex = 0;
+    const frag = document.createDocumentFragment(); let last = 0, m;
+    while ((m = MENTION_TOKEN.exec(txt))) {
+      frag.appendChild(document.createTextNode(txt.slice(last, m.index)));
+      const a = document.createElement('a'); a.href = '#'; a.className = 'mention'; a.dataset.go = 'user:id:' + m[2]; a.textContent = '@' + m[1];
+      frag.appendChild(a); last = m.index + m[0].length;
+    }
+    frag.appendChild(document.createTextNode(txt.slice(last)));
+    const parent = n.parentNode; parent.replaceChild(frag, n); bindCommon(parent);
+  }
+}
+let mentionScan = 0;
+new MutationObserver(() => { cancelAnimationFrame(mentionScan); mentionScan = requestAnimationFrame(() => linkMentions(view)); }).observe(view, { childList: true, subtree: true });
+// a mention inside a notification opens the right place (tickets, projects, servers already do)
 
 /* ================= loader (like the site) + sign-out confirmation ================= */
 Object.assign(I18N.he, { lo_title: 'להתנתק?', lo_text: 'בטוח שאתה רוצה להתנתק מהחשבון?', lo_yes: 'כן, התנתק', lo_no: 'ביטול' });
