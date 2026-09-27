@@ -21,7 +21,7 @@ Get the latest `CraftHubSetup-x.y.z.exe` from [Releases](https://github.com/coin
 npm install
 npm start          # runs against https://crafthubs.net
 npm run dist       # builds dist/CraftHubSetup-x.y.z.exe
-npm run release    # builds and publishes a GitHub release (needs GH_TOKEN)
+npm run release -- "מה חדש"   # builds and publishes a GitHub release (needs gh auth login)
 ```
 
 Bump `version` in `package.json` before every release — installed apps update themselves from the latest release.
