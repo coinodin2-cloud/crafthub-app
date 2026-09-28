@@ -155,7 +155,7 @@ ipcMain.handle('open-site-window', (e, p) => {
 
 
 // ---------- file uploads to crafthubs.net (projects, versions, icons, gallery, server images) ----------
-const UPLOAD_PATHS = /^\/api\/(studio\/draft|studio\/projects\/[a-z0-9-]+\/(version|icon|gallery)|servers\/[a-z0-9-]+\/image\/(icon|banner)|admin\/partners\/[a-f0-9]+\/logo|admin\/appearance\/background\/(main|home))$/;
+const UPLOAD_PATHS = /^\/api\/(studio\/draft|studio\/projects\/[a-z0-9-]+\/(version|icon|gallery)|servers\/[a-z0-9-]+\/image\/(icon|banner)|admin\/partners\/[a-f0-9]+\/logo|admin\/appearance\/background\/(main|home)|dm\/[\w:.@%-]+\/file|dm\/g\/\w+\/file)$/;
 function multipart(fields, file) {
   const boundary = '----CraftHub' + Date.now().toString(16) + Math.random().toString(16).slice(2);
   const parts = [];
