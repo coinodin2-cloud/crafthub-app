@@ -1,5 +1,5 @@
 // Craft Hub desktop app — its own interface (app/), data from crafthubs.net, installs straight into Minecraft.
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, net, session, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme, net, session, desktopCapturer, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -223,6 +223,22 @@ ipcMain.handle('open-test-window', async (e, slot) => {
   testWindows.set(n, w);
   w.loadFile(path.join(APP_DIR, 'index.html'), { query: { tester: String(n) } });
   return { ok: true, slot: n };
+});
+
+// ---------- red number on the taskbar icon (unread messages + notifications) ----------
+ipcMain.on('set-badge', (e, { count, png } = {}) => {
+  if (!trusted(e)) return;
+  const w = BrowserWindow.fromWebContents(e.sender); if (!w || w.isDestroyed()) return;
+  const n = Math.max(0, Math.round(Number(count) || 0));
+  if (process.platform === 'win32') {
+    try { w.setOverlayIcon(n && png ? nativeImage.createFromDataURL(String(png)) : null, n ? n + ' new' : ''); } catch { }
+  } else app.setBadgeCount(n);
+});
+// something new while the app is in the background: the taskbar button blinks until you open it
+ipcMain.on('flash', e => {
+  if (!trusted(e)) return;
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (w && !w.isDestroyed() && !w.isFocused()) { w.flashFrame(true); w.once('focus', () => w.flashFrame(false)); }
 });
 
 // ---------- screen sharing in calls ----------

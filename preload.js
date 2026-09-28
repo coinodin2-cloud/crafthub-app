@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('craftHubApp', {
   screenSources: () => ipcRenderer.invoke('screen-sources'),
   screenPick: (id) => ipcRenderer.invoke('screen-pick', id),
   openTestWindow: (slot) => ipcRenderer.invoke('open-test-window', slot),
+  setBadge: (count, png) => ipcRenderer.send('set-badge', { count, png }),
+  flash: () => ipcRenderer.send('flash'),
   tester: new URLSearchParams(location.search).get('tester') || '',
   updateState: () => ipcRenderer.invoke('update-state'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
