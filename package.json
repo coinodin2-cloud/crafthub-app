@@ -1,6 +1,6 @@
 {
   "name": "crafthub-app",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Craft Hub — install Minecraft mods, packs and shaders, play and vote for servers",
   "main": "main.js",
   "scripts": {
@@ -71,5 +71,6 @@
         "releaseType": "release"
       }
     ]
-  }
+  },
+  "displayVersion": "1.0.0 Beta"
 }

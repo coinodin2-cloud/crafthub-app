@@ -24,7 +24,7 @@ const I18N = {
     vote: 'הצבעה', vote_for: 'הצבעה ל-{x}', mc_name: 'שם המשתמש במיינקראפט', vote_btn: 'הצבע!', vote_ok: 'ההצבעה נקלטה! 🎉', voted: 'הצבעת היום ✓', vote_again: 'אפשר להצביע שוב בעוד {x}', vote_login: 'צריך להתחבר כדי להצביע', top_voters: 'המצביעים המובילים', no_voters: 'עוד אין הצבעות',
     account: 'חשבון', language: 'שפה', mc_folder: 'תיקיית מיינקראפט', plugins_folder: 'תיקיית plugins של שרת', change: 'שינוי', app_version: 'גרסת האפליקציה', check_updates: 'בדיקת עדכונים', up_to_date_app: 'יש לך את הגרסה האחרונה ✓', update_found: 'נמצאה גרסה {x} — מורידה ברקע',
     website: 'האתר', discord: 'דיסקורד', notifications: 'התראות', no_notifs: 'אין התראות', mark_read: 'סמן הכל כנקרא',
-    upd_available: 'עדכון זמין: v{x}', upd_days: 'נשארו {x} ימים לעדכן', upd_now: 'עדכן עכשיו', upd_downloading: 'מוריד… {x}%', install_ok: 'הותקן ✓', install_err: 'ההתקנה נכשלה', uninstalled: 'הוסר',
+    upd_available: 'עדכון זמין: {x}', upd_days: 'נשארו {x} ימים לעדכן', upd_now: 'עדכן עכשיו', upd_downloading: 'מוריד… {x}%', install_ok: 'הותקן ✓', install_err: 'ההתקנה נכשלה', uninstalled: 'הוסר',
     confirm_uninstall: 'להסיר את {x}?', error: 'שגיאה', welcome: 'ברוך הבא{x} 👋', welcome_sub: 'מה משחקים היום?', mc_missing: 'תיקיית מיינקראפט לא נמצאה — בחר אותה בהגדרות',
     types: { plugin: 'פלאגינים', mod: 'מודים', resourcepack: 'טקסטורות', shader: 'שיידרים', datapack: 'דאטהפאקים', modpack: 'מודפאקים', world: 'עולמות' }
   },
@@ -44,7 +44,7 @@ const I18N = {
     vote: 'Vote', vote_for: 'Vote for {x}', mc_name: 'Minecraft username', vote_btn: 'Vote!', vote_ok: 'Vote counted! 🎉', voted: 'You voted today ✓', vote_again: 'Vote again in {x}', vote_login: 'Sign in to vote', top_voters: 'Top voters', no_voters: 'No votes yet',
     account: 'Account', language: 'Language', mc_folder: 'Minecraft folder', plugins_folder: 'Server plugins folder', change: 'Change', app_version: 'App version', check_updates: 'Check for updates', up_to_date_app: 'You have the latest version ✓', update_found: 'Version {x} found — downloading',
     website: 'Website', discord: 'Discord', notifications: 'Notifications', no_notifs: 'No notifications', mark_read: 'Mark all read',
-    upd_available: 'Update available: v{x}', upd_days: '{x} days left to update', upd_now: 'Update now', upd_downloading: 'Downloading… {x}%', install_ok: 'Installed ✓', install_err: 'Install failed', uninstalled: 'Removed',
+    upd_available: 'Update available: {x}', upd_days: '{x} days left to update', upd_now: 'Update now', upd_downloading: 'Downloading… {x}%', install_ok: 'Installed ✓', install_err: 'Install failed', uninstalled: 'Removed',
     confirm_uninstall: 'Remove {x}?', error: 'Error', welcome: 'Welcome{x} 👋', welcome_sub: 'What are we playing today?', mc_missing: 'Minecraft folder not found — pick it in Settings',
     types: { plugin: 'Plugins', mod: 'Mods', resourcepack: 'Texture packs', shader: 'Shaders', datapack: 'Datapacks', modpack: 'Modpacks', world: 'Worlds' }
   }
@@ -449,7 +449,7 @@ function drawUpdate(st) {
   if (!st || !st.available || st.blocked) { bar.hidden = true; return; }
   bar.hidden = false;
   bar.classList.toggle('urgent', st.daysLeft <= 3);
-  bar.innerHTML = `${ic('download', 'sm')}<b>${t('upd_available', st.version)}</b><span class="faint">${st.progress && !st.downloaded ? t('upd_downloading', st.progress) : ''}</span><span class="spacer"></span><span class="days">${t('upd_days', st.daysLeft)}</span><button class="btn sm primary" id="updGo" ${st.progress && !st.downloaded ? 'disabled' : ''}>${t('upd_now')}</button>`;
+  bar.innerHTML = `${ic('download', 'sm')}<b>${t('upd_available', (st.label || 'v' + st.version))}</b><span class="faint">${st.progress && !st.downloaded ? t('upd_downloading', st.progress) : ''}</span><span class="spacer"></span><span class="days">${t('upd_days', st.daysLeft)}</span><button class="btn sm primary" id="updGo" ${st.progress && !st.downloaded ? 'disabled' : ''}>${t('upd_now')}</button>`;
   $('#updGo').onclick = () => { $('#updGo').disabled = true; B.installUpdate(); };
 }
 B.updateState().then(drawUpdate).catch(() => { });
@@ -1867,8 +1867,8 @@ renderNav = function () {
 };
 
 /* ---------- app update: bar + popup (fixed) ---------- */
-Object.assign(I18N.he, { au_title: 'גרסה חדשה של Craft Hub!', au_text: 'גרסה {x} מוכנה להורדה — עם שיפורים ותיקונים.', au_later: 'אחר כך', au_ready: 'העדכון מוכן — v{x}', au_restart: 'הפעל מחדש ועדכן', au_failed: 'הורדת העדכון נכשלה', au_retry: 'נסה שוב', au_dl_toast: 'מוריד את העדכון… האפליקציה תופעל מחדש לבד בסוף', au_installing: 'מתקין…', au_starting: 'מתחיל הורדה…' });
-Object.assign(I18N.en, { au_title: 'A new Craft Hub version!', au_text: 'Version {x} is ready — with improvements and fixes.', au_later: 'Later', au_ready: 'Update ready — v{x}', au_restart: 'Restart & update', au_failed: 'The update download failed', au_retry: 'Try again', au_dl_toast: 'Downloading the update… the app restarts by itself when done', au_installing: 'Installing…', au_starting: 'Starting download…' });
+Object.assign(I18N.he, { au_title: 'גרסה חדשה של Craft Hub!', au_text: 'גרסה {x} מוכנה להורדה — עם שיפורים ותיקונים.', au_later: 'אחר כך', au_ready: 'העדכון מוכן — {x}', au_restart: 'הפעל מחדש ועדכן', au_failed: 'הורדת העדכון נכשלה', au_retry: 'נסה שוב', au_dl_toast: 'מוריד את העדכון… האפליקציה תופעל מחדש לבד בסוף', au_installing: 'מתקין…', au_starting: 'מתחיל הורדה…' });
+Object.assign(I18N.en, { au_title: 'A new Craft Hub version!', au_text: 'Version {x} is ready — with improvements and fixes.', au_later: 'Later', au_ready: 'Update ready — {x}', au_restart: 'Restart & update', au_failed: 'The update download failed', au_retry: 'Try again', au_dl_toast: 'Downloading the update… the app restarts by itself when done', au_installing: 'Installing…', au_starting: 'Starting download…' });
 let AU_POP = false;
 function startUpdate() { B.installUpdate().then(r => { if (r && r.ok === false && r.error !== 'dev') toast(t('au_failed') + (r.error ? ': ' + r.error : ''), 'err'); }).catch(() => { }); }
 drawUpdate = function (st) {
@@ -1879,9 +1879,9 @@ drawUpdate = function (st) {
   const busy = st.downloading && !st.downloaded;
   let label, btn;
   if (st.error && !busy && !st.downloaded) { label = `<b>${t('au_failed')}</b><span class="faint upd-err">${esc(String(st.error).slice(0, 90))}</span>`; btn = `<button class="btn sm primary" id="updGo">${ic('refresh', 'sm')} ${t('au_retry')}</button>`; }
-  else if (st.downloaded) { label = `<b>${t('au_ready', st.version)}</b>`; btn = `<button class="btn sm primary" id="updGo" ${st.installing ? 'disabled' : ''}>${ic('refresh', 'sm')} ${st.installing ? t('au_installing') : t('au_restart')}</button>`; }
-  else if (busy || st.installing) { label = `<b>${t('upd_available', st.version)}</b><span class="upd-prog"><i style="width:${st.progress || 0}%"></i></span><span class="faint">${st.progress ? st.progress + '%' : t('au_starting')}</span>`; btn = `<button class="btn sm primary" disabled>${t('upd_downloading', st.progress || 0)}</button>`; }
-  else { label = `<b>${t('upd_available', st.version)}</b>`; btn = `<button class="btn sm primary" id="updGo">${ic('download', 'sm')} ${t('upd_now')}</button>`; }
+  else if (st.downloaded) { label = `<b>${t('au_ready', (st.label || 'v' + st.version))}</b>`; btn = `<button class="btn sm primary" id="updGo" ${st.installing ? 'disabled' : ''}>${ic('refresh', 'sm')} ${st.installing ? t('au_installing') : t('au_restart')}</button>`; }
+  else if (busy || st.installing) { label = `<b>${t('upd_available', (st.label || 'v' + st.version))}</b><span class="upd-prog"><i style="width:${st.progress || 0}%"></i></span><span class="faint">${st.progress ? st.progress + '%' : t('au_starting')}</span>`; btn = `<button class="btn sm primary" disabled>${t('upd_downloading', st.progress || 0)}</button>`; }
+  else { label = `<b>${t('upd_available', (st.label || 'v' + st.version))}</b>`; btn = `<button class="btn sm primary" id="updGo">${ic('download', 'sm')} ${t('upd_now')}</button>`; }
   bar.innerHTML = `${ic('download', 'sm')}${label}<span class="spacer"></span>${st.downloaded ? '' : `<span class="days">${t('upd_days', st.daysLeft)}</span>`}${btn}`;
   const go_ = $('#updGo');
   if (go_) go_.onclick = () => { go_.disabled = true; if (!st.downloaded) toast(t('au_dl_toast')); startUpdate(); };
@@ -1889,7 +1889,7 @@ drawUpdate = function (st) {
   AU_POP = true;
   const m = document.createElement('div');
   m.className = 'modal-back';
-  m.innerHTML = `<div class="card upd-modal"><div class="upd-ic">${ic('download', 'xl')}</div><h2>${t('au_title')}</h2><p>${esc(t('au_text', st.version))}</p><p class="faint" style="font-size:13px">${esc(t('upd_days', st.daysLeft))}</p>
+  m.innerHTML = `<div class="card upd-modal"><div class="upd-ic">${ic('download', 'xl')}</div><h2>${t('au_title')}</h2><p>${esc(t('au_text', (st.label || 'v' + st.version)))}</p><p class="faint" style="font-size:13px">${esc(t('upd_days', st.daysLeft))}</p>
     <div class="row" style="justify-content:center;margin-top:18px"><button class="btn primary lg" id="updPopGo">${ic('download', 'sm')} ${t('upd_now')}</button><button class="btn lg ghost" id="updPopLater">${t('au_later')}</button></div></div>`;
   document.body.appendChild(m);
   $('#updPopLater').onclick = () => m.remove();
@@ -2215,7 +2215,7 @@ async function vLegal(p, stale) {
   if (stale()) return;
   const extra = String((S.site && S.site.credits) || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split(/\s+[—-]\s+/); return { name: n, role: r.join(' — ') }; });
   body.innerHTML = `
-    <section class="card credits-hero"><div class="sh-mark">${ic('grid')}</div><h2>Craft Hub</h2><p class="faint">${esc(S.site.subtitle || '')}</p>${st.current ? `<span class="chip">${t('lg_version')} v${esc(st.current)}</span>` : ''}</section>
+    <section class="card credits-hero"><div class="sh-mark">${ic('grid')}</div><h2>Craft Hub</h2><p class="faint">${esc(S.site.subtitle || '')}</p>${st.current ? `<span class="chip">${t('lg_version')} ${esc(st.currentLabel || 'v' + st.current)}</span>` : ''}</section>
     ${team.length || extra.length ? `<h3 class="sec-t">${ic('users', 'sm')} ${t('lg_team')}</h3><div class="credit-grid">
       ${team.map(m => `<div class="credit" data-go="user:id:${esc(m.id)}"><img src="${esc(siteImg(m.avatar) || m.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">${m.owner ? `<span class="credit-crown">${ic('crown', 'sm')}</span>` : ''}<b>${esc(m.name)}</b><small>${esc(m.title || (m.owner ? (LANG === 'he' ? 'מייסד' : 'Founder') : ''))}</small></div>`).join('')}
       ${extra.map(x => `<div class="credit"><div class="credit-av">${esc(x.name.charAt(0))}</div><b>${esc(x.name)}</b><small>${esc(x.role)}</small></div>`).join('')}</div>` : ''}
@@ -2321,20 +2321,22 @@ const CHANGELOG = [
   { v: '1.12.0', items: ['📞 שיחות קוליות בין חברים', '🎙️ הגדרות מיקרופון ורמקולים', '🖥️ שיתוף מסך בשיחות (באישור הצוות)'] },
   { v: '1.12.1', items: ['🏷️ תיוג חברים עם @ בצ׳אט, בטיקטים ובביקורות', '🔇 השתקה (Ctrl+M) ודיפן (Ctrl+D) בשיחות', '🔒 פרטיות: מי יכול לשלוח לך הודעות ולהתקשר אליך'] },
   { v: '1.13.0', items: ['⚡ שיפורים ותיקונים'] },
+  { v: '1.15.0', items: ['🎉 Craft Hub 1.0.0 Beta!', '😊 אימוג׳ים בצ׳אט', '📎 שליחת תמונות וקבצים בצ׳אט', '⌨️ רואים כשמישהו מקליד', '🟢 עיגול ירוק למי שמדבר בשיחה', '🖥️ שיתוף מסך נוח יותר — מסך מלא וגדילה אוטומטית', '🔔 צלצול חדש', '🛠️ שיחות יציבות יותר'] },
   { v: '1.14.0', items: ['👥 צ׳אטים קבוצתיים — יוצרים קבוצה עם חברים, מתייגים ומדברים', '📞 שיחות קבוצתיות — עד 6 אנשים, אפשר להוסיף חברים באמצע שיחה', '🔴 מספר אדום בשורת המשימות כשיש הודעות והתראות חדשות', '🛠️ שיחות יציבות יותר — חיבור שנופל מתחבר מחדש לבד'] },
   { v: '1.11.0', items: ['💬 הודעות פרטיות בין חברים', '🗳️ תזכורת כשאפשר להצביע שוב לשרת', '🎬 סרטון יוטיוב בדף פרויקט', '✨ "אולי תאהב גם" — פרויקטים דומים', '📈 גרף שחקנים לכל שרת', '📅 אירועים לשרתים, עם תזכורות', '🏆 טבלת מובילים', '✔️ וי כחול לקרייטורים מאומתים'] }
 ];
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 async function whatsNew() {
   let cur;
-  try { cur = (await B.updateState()).current; } catch { return; }
+  let curLabel = '';
+  try { const st0 = await B.updateState(); cur = st0.current; curLabel = st0.currentLabel || 'v' + cur; } catch { return; }
   if (!cur) return;
   let seen = null; try { seen = localStorage.getItem('ch_seen_ver'); localStorage.setItem('ch_seen_ver', cur); } catch { return; }
   if (!seen || !verGt(cur, seen)) return; // first install (the tour covers it) or nothing new
   const items = CHANGELOG.filter(c => verGt(c.v, seen) && !verGt(c.v, cur)).flatMap(c => c.items);
   if (!items.length) return;
   const m = document.createElement('div'); m.className = 'modal-back';
-  m.innerHTML = `<div class="card wn-modal"><div class="tour-logo">${ic('sparkle', 'xl')}</div><h2>${t('wn_title')}</h2><span class="chip accent">v${esc(cur)}</span>
+  m.innerHTML = `<div class="card wn-modal"><div class="tour-logo">${ic('sparkle', 'xl')}</div><h2>${t('wn_title')}</h2><span class="chip accent">${esc(curLabel)}</span>
     <ul class="wn-list">${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul><button class="btn primary lg" data-x>${t('wn_ok')}</button></div>`;
   document.body.appendChild(m);
   m.querySelector('[data-x]').onclick = () => m.remove();
@@ -2535,6 +2537,7 @@ Object.assign(I18N.he, {
   av_title: 'קול', av_mic: 'מיקרופון', av_cam: 'מצלמה', av_spk: 'רמקולים / אוזניות', av_default: 'ברירת מחדל', av_test_mic: 'דבר כדי לבדוק את המיקרופון', av_test_spk: 'בדיקת רמקול', av_cam_on: 'הצג מצלמה', av_cam_off: 'כבה תצוגה', av_ns: 'סינון רעשי רקע', av_ec: 'ביטול הד', av_agc: 'כיוון עוצמה אוטומטי', av_perm: 'צריך לאשר גישה למיקרופון',
   pv_title: 'פרטיות', pv_dms: 'מי יכול לשלוח לי הודעות פרטיות', pv_calls: 'מי יכול להתקשר אליי', pv_friends: 'חברים', pv_none: 'אף אחד', pv_saved: 'נשמר ✓', pv_dm_off_other: 'המשתמש כיבה הודעות פרטיות',
   ss_perm: 'הרשאת שיתוף מסך', ss_on: 'תן שיתוף מסך', ss_off: 'הסר שיתוף מסך', ss_badge: 'משתף מסך',
+  ch_gif_soon: 'GIF — בקרוב 🔒',
   ch_share_fail: 'לא הצלחתי לשתף את המסך/החלון שנבחר — נסה לבחור אחר',
   ty_one: '{x} מקליד…', ty_two: '{x} ו-{y} מקלידים…', ty_many: 'כמה אנשים מקלידים…',
   ch_emoji: 'אימוג׳י', ch_attach: 'צירוף קובץ או תמונה', ch_gif_search: 'חיפוש GIF…', ch_video_dev: '🎥 שיחות וידאו — בפיתוח 🔒', ch_fullscreen: 'מסך מלא',
@@ -2549,6 +2552,7 @@ Object.assign(I18N.en, {
   av_title: 'Voice', av_mic: 'Microphone', av_cam: 'Camera', av_spk: 'Speakers / headphones', av_default: 'Default', av_test_mic: 'Speak to test the microphone', av_test_spk: 'Test speaker', av_cam_on: 'Show camera', av_cam_off: 'Stop preview', av_ns: 'Noise suppression', av_ec: 'Echo cancellation', av_agc: 'Auto gain', av_perm: 'Allow access to the microphone',
   pv_title: 'Privacy', pv_dms: 'Who can send me private messages', pv_calls: 'Who can call me', pv_friends: 'Friends', pv_none: 'Nobody', pv_saved: 'Saved ✓', pv_dm_off_other: 'This user turned off private messages',
   ss_perm: 'Screen share permission', ss_on: 'Allow screen share', ss_off: 'Remove screen share', ss_badge: 'Can share screen',
+  ch_gif_soon: 'GIFs — coming soon 🔒',
   ch_share_fail: 'Could not share that screen/window — try another one',
   ty_one: '{x} is typing…', ty_two: '{x} and {y} are typing…', ty_many: 'Several people are typing…',
   ch_emoji: 'Emoji', ch_attach: 'Attach a file or picture', ch_gif_search: 'Search GIFs…', ch_video_dev: '🎥 Video calls — in development 🔒', ch_fullscreen: 'Full screen',
@@ -2970,7 +2974,7 @@ async function vMessages(p, stale) {
   }
   const canWrite = isGroup || (d.friend === 'friends' && !d.dmsOff);
   chat.innerHTML = `${head}<div class="dm-msgs" id="dmMsgs"></div><div class="dm-typing" id="dmTyping"></div>
-    ${canWrite ? `<form class="composer" id="dmF"><div class="cmp-tools"><button type="button" class="cmp-t" id="emoBtn" title="${t('ch_emoji')}">😊</button><button type="button" class="cmp-t gif" id="gifBtn" title="GIF">GIF</button><button type="button" class="cmp-t" id="attBtn" title="${t('ch_attach')}">${ic('clip', 'sm')}</button></div><textarea name="text" rows="1" maxlength="2000" placeholder="${t('dm_ph')}"></textarea><button class="btn primary">${ic('send', 'sm')} ${t('dm_send')}</button></form>`
+    ${canWrite ? `<form class="composer" id="dmF"><div class="cmp-tools"><button type="button" class="cmp-t" id="emoBtn" title="${t('ch_emoji')}">😊</button><button type="button" class="cmp-t gif locked" id="gifBtn" title="${t('ch_gif_soon')}">GIF<span class="lk">🔒</span></button><button type="button" class="cmp-t" id="attBtn" title="${t('ch_attach')}">${ic('clip', 'sm')}</button></div><textarea name="text" rows="1" maxlength="2000" placeholder="${t('dm_ph')}"></textarea><button class="btn primary">${ic('send', 'sm')} ${t('dm_send')}</button></form>`
       : `<p class="faint dm-off" style="text-align:center;padding:12px;margin:0">${d.friend === 'friends' && d.dmsOff ? t('pv_dm_off_other') : t('dm_only_friends')}</p>`}`;
   bindCommon(chat);
   if ($('#dmCall')) $('#dmCall').onclick = e => { e.stopPropagation(); startCall(d.with.id); };
@@ -3006,7 +3010,8 @@ async function vMessages(p, stale) {
     ta.addEventListener('input', () => { if (!ta.value.trim() || Date.now() - lastTy < 2500) return; lastTy = Date.now(); api(base + '/typing', { method: 'POST', body: {} }).catch(() => { }); });
     f.onsubmit = async e => { e.preventDefault(); const v = ta.value.trim(); if (!v) return; ta.value = ''; try { add([await api(base, { method: 'POST', body: { text: v } })]); api('/api/dm').then(drawList).catch(() => { }); } catch (err) { ta.value = v; toast(err.message, 'err'); } };
     $('#emoBtn').onclick = e => { e.stopPropagation(); emojiPicker($('#emoBtn'), em => { const p = ta.selectionStart ?? ta.value.length; ta.value = ta.value.slice(0, p) + em + ta.value.slice(p); ta.focus(); ta.setSelectionRange(p + em.length, p + em.length); }); };
-    $('#gifBtn').onclick = () => gifPicker(async gif => { try { add([await api(base, { method: 'POST', body: { text: '', gif } })]); api('/api/dm').then(drawList).catch(() => { }); } catch (err) { toast(err.message, 'err'); } });
+    $('#gifBtn').onclick = () => toast(t('ch_gif_soon'));
+    if (false) gifPicker(async gif => { try { add([await api(base, { method: 'POST', body: { text: '', gif } })]); api('/api/dm').then(drawList).catch(() => { }); } catch (err) { toast(err.message, 'err'); } });
     $('#attBtn').onclick = async () => {
       const r = await B.uploadFile({ apiPath: base + '/file', field: 'file', fields: { text: ta.value.trim() } });
       if (r.canceled) return;

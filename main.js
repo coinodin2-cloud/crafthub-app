@@ -442,9 +442,11 @@ function pendingUpdate() {
   const daysLeft = Math.max(0, Math.ceil(UPDATE_GRACE_DAYS - (Date.now() - p.seenAt) / 86400000));
   return { ...p, daysLeft, blocked: daysLeft <= 0 };
 }
+// the name people see for a version (package.json displayVersion / the release's name)
+const APP_LABEL = (() => { try { return require('./package.json').displayVersion || app.getVersion(); } catch { return app.getVersion(); } })();
 function publicUpdateState() {
   const p = pendingUpdate();
-  return { ...updateState, available: !!p || updateState.available, version: (p && p.version) || updateState.version, daysLeft: p ? p.daysLeft : UPDATE_GRACE_DAYS, blocked: !!(p && p.blocked), current: app.getVersion() };
+  return { ...updateState, available: !!p || updateState.available, version: (p && p.version) || updateState.version, daysLeft: p ? p.daysLeft : UPDATE_GRACE_DAYS, blocked: !!(p && p.blocked), current: app.getVersion(), currentLabel: APP_LABEL, label: updateState.label || '' };
 }
 function pushUpdateState() { if (win && !win.isDestroyed()) win.webContents.send('update-state', publicUpdateState()); }
 function enforceBlock() {
@@ -478,7 +480,7 @@ function setupUpdates() {
     const s = readSettings();
     // the 3 weeks start the first time a given version is seen
     if (!s.pendingUpdate || s.pendingUpdate.version !== info.version) writeSettings({ ...s, pendingUpdate: { version: info.version, seenAt: (s.pendingUpdate && s.pendingUpdate.seenAt) || Date.now() } });
-    updateState = { ...updateState, available: true, version: info.version, downloading: true, error: '' };
+    updateState = { ...updateState, available: true, version: info.version, label: info.releaseName || info.version, downloading: true, error: '' };
     pushUpdateState();
   });
   autoUpdater.on('download-progress', p => { const pr = Math.round(p.percent || 0); if (pr === updateState.progress && updateState.downloading) return; updateState.progress = pr; updateState.downloading = true; pushUpdateState(); });
